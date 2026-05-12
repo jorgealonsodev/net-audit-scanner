@@ -23,12 +23,13 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "1"
 ipnetwork = "0.20"
-macaddr = "1"
+macaddr = { version = "1", features = ["serde"] }
 dirs = "5"
 toml = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1"
 include_dir = "0.7"
+libc = "0.2"
 
 [dev-dependencies]
 assert_cmd = "2"
