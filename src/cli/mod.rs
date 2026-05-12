@@ -61,6 +61,7 @@ pub async fn run() -> Result<(), Error> {
                 default_network: args.network.clone(),
                 port_range,
                 timeout_ms: args.timeout_ms,
+                banner_timeout_ms: args.banner_timeout_ms,
                 concurrency: args.concurrency,
             };
 

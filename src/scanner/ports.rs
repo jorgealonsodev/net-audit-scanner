@@ -92,6 +92,8 @@ pub const IOT_CRITICAL_PORTS: &[u16] = &[
     6667,  // IRC (botnets)
     23,    // Telnet (IoT default)
     2323,  // Telnet alt (IoT)
+    37777, // Dahua DVR
+    34567, // HiSilicon DVR
     49152, // UPnP dynamic
     49153, // UPnP dynamic
 ];
@@ -228,6 +230,8 @@ mod tests {
         assert!(iot.contains(&5353)); // mDNS
         assert!(iot.contains(&554)); // RTSP
         assert!(iot.contains(&23)); // Telnet
+        assert!(iot.contains(&37777)); // Dahua DVR
+        assert!(iot.contains(&34567)); // HiSilicon DVR
     }
 
     #[test]

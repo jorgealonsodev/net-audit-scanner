@@ -99,8 +99,15 @@ pub fn classify_service(port: u16, banner: Option<&str>) -> ServiceType {
 /// Rules:
 /// - Telnet and FTP are ALWAYS insecure
 /// - HTTP is insecure ONLY if the host does NOT also have HTTPS (port 443) open
+/// - IoT DVR ports (37777 Dahua, 34567 HiSilicon) are ALWAYS insecure
 /// - All other services are considered secure by default
-pub fn is_insecure(service: &ServiceType, _port: u16, host_has_https: bool) -> bool {
+pub fn is_insecure(service: &ServiceType, port: u16, host_has_https: bool) -> bool {
+    // Port-based insecure detection (catches Unknown service on insecure ports)
+    match port {
+        37777 | 34567 | 23 | 21 => return true, // Dahua DVR, HiSilicon DVR, Telnet, FTP
+        _ => {}
+    }
+
     match service {
         ServiceType::Telnet | ServiceType::Ftp => true,
         ServiceType::Http => !host_has_https,
@@ -343,6 +350,34 @@ mod tests {
         assert!(!is_insecure(&ServiceType::Unknown, 9999, false));
     }
 
+    #[test]
+    fn dahua_dvr_port_insecure() {
+        // Port 37777 is insecure even with Unknown service
+        assert!(is_insecure(&ServiceType::Unknown, 37777, false));
+        assert!(is_insecure(&ServiceType::Unknown, 37777, true));
+    }
+
+    #[test]
+    fn hisilicon_dvr_port_insecure() {
+        // Port 34567 is insecure even with Unknown service
+        assert!(is_insecure(&ServiceType::Unknown, 34567, false));
+        assert!(is_insecure(&ServiceType::Unknown, 34567, true));
+    }
+
+    #[test]
+    fn telnet_port_insecure_even_with_unknown_service() {
+        // Port 23 is insecure even if service classification fails
+        assert!(is_insecure(&ServiceType::Unknown, 23, false));
+        assert!(is_insecure(&ServiceType::Unknown, 23, true));
+    }
+
+    #[test]
+    fn ftp_port_insecure_even_with_unknown_service() {
+        // Port 21 is insecure even if service classification fails
+        assert!(is_insecure(&ServiceType::Unknown, 21, false));
+        assert!(is_insecure(&ServiceType::Unknown, 21, true));
+    }
+
     // ─── build_open_port tests ───
 
     #[test]
@@ -371,5 +406,17 @@ mod tests {
         let port = build_open_port(22, Some("SSH-2.0-OpenSSH_8.9"), false);
         assert_eq!(port.banner.as_deref(), Some("SSH-2.0-OpenSSH_8.9"));
         assert_eq!(port.service, ServiceType::Ssh);
+    }
+
+    #[test]
+    fn build_open_port_dahua_dvr_insecure() {
+        let port = build_open_port(37777, None, true);
+        assert!(port.is_insecure);
+    }
+
+    #[test]
+    fn build_open_port_hisilicon_dvr_insecure() {
+        let port = build_open_port(34567, None, true);
+        assert!(port.is_insecure);
     }
 }

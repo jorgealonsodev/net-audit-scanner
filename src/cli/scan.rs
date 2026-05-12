@@ -21,6 +21,10 @@ pub struct ScanArgs {
     #[arg(long, default_value_t = 1500)]
     pub timeout_ms: u64,
 
+    /// Banner grab timeout in milliseconds
+    #[arg(long, default_value_t = 500)]
+    pub banner_timeout_ms: u64,
+
     /// Output results as JSON instead of a table
     #[arg(long)]
     pub json: bool,

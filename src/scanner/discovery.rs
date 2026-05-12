@@ -100,6 +100,7 @@ impl Scanner {
         let concurrency = self.config.concurrency.min(hosts.len() * ports.len().max(1));
         let semaphore = std::sync::Arc::new(Semaphore::new(concurrency));
         let timeout_ms = self.config.timeout_ms;
+        let banner_timeout_ms = self.config.banner_timeout_ms;
 
         let mut results = Vec::new();
 
@@ -122,7 +123,7 @@ impl Scanner {
                             Ok(Ok(stream)) => {
                                 // Convert tokio stream to std for banner grabbing
                                 let std_stream = stream.into_std().ok()?;
-                                let banner_timeout = Duration::from_millis(timeout_ms.min(2000));
+                                let banner_timeout = Duration::from_millis(banner_timeout_ms);
                                 let banner = tokio::task::spawn_blocking(move || {
                                     let mut s = std_stream;
                                     grab_banner(&mut s, banner_timeout)
@@ -723,6 +724,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             default_network: "10.0.0.0/8".into(),
             port_range: "top-100".into(),
             timeout_ms: 500,
+            banner_timeout_ms: 300,
             concurrency: 128,
         };
         let scanner = Scanner::new(config);

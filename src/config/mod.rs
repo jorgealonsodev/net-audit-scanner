@@ -7,6 +7,7 @@ pub struct ScanConfig {
     pub default_network: String,
     pub port_range: String,
     pub timeout_ms: u64,
+    pub banner_timeout_ms: u64,
     pub concurrency: usize,
 }
 
@@ -16,6 +17,7 @@ impl Default for ScanConfig {
             default_network: "auto".into(),
             port_range: "top-1000".into(),
             timeout_ms: 1500,
+            banner_timeout_ms: 500,
             concurrency: 512,
         }
     }
@@ -110,6 +112,7 @@ mod tests {
         assert_eq!(cfg.scan.default_network, "auto");
         assert_eq!(cfg.scan.port_range, "top-1000");
         assert_eq!(cfg.scan.timeout_ms, 1500);
+        assert_eq!(cfg.scan.banner_timeout_ms, 500);
         assert_eq!(cfg.scan.concurrency, 512);
         assert_eq!(cfg.cve.cache_ttl_hours, 24);
         assert_eq!(cfg.report.default_format, "html");
