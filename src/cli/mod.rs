@@ -4,8 +4,11 @@ mod serve;
 mod update;
 
 use clap::{Parser, Subcommand};
+use ipnetwork::IpNetwork;
 
 use crate::error::Error;
+use crate::scanner::{Scanner, detect, detect_local_network};
+use scan::{format_hosts_json, format_hosts_table};
 
 /// netascan — Network security audit CLI
 #[derive(Parser)]
@@ -32,8 +35,56 @@ pub async fn run() -> Result<(), Error> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Scan(_args) => {
-            println!("scan subcommand (stub)");
+        Commands::Scan(args) => {
+            // Resolve network: "auto" or explicit CIDR
+            let network = resolve_network(&args.network)?;
+
+            // Resolve port range: --port-range > --full > config default
+            let port_range = if let Some(ref pr) = args.port_range {
+                pr.clone()
+            } else if args.full {
+                "full".into()
+            } else {
+                crate::config::ScanConfig::default().port_range
+            };
+
+            // Warn if --full is used on a large network
+            if args.full && network.prefix() < 31 {
+                tracing::warn!(
+                    "--full scan on network /{} — this may take a very long time!",
+                    network.prefix()
+                );
+            }
+
+            // Build scan config from CLI args
+            let config = crate::config::ScanConfig {
+                default_network: args.network.clone(),
+                port_range,
+                timeout_ms: args.timeout_ms,
+                concurrency: args.concurrency,
+            };
+
+            // Detect platform capabilities
+            let caps = detect();
+
+            // Warn about unavailable methods
+            if !caps.can_icmp {
+                tracing::warn!("ICMP sweep unavailable (requires root or CAP_NET_RAW). Using TCP + ARP only.");
+            }
+
+            // Run discovery
+            let scanner = Scanner::new(config);
+            let hosts = scanner.discover_network(&network, &caps).await?;
+
+            // Run port scanning on discovered hosts
+            let hosts = scanner.scan_ports(hosts).await;
+
+            // Output results
+            if args.json {
+                println!("{}", format_hosts_json(&hosts));
+            } else {
+                println!("{}", format_hosts_table(&hosts));
+            }
         }
         Commands::Report(_args) => {
             println!("report subcommand (stub)");
@@ -47,6 +98,24 @@ pub async fn run() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+/// Resolve the network argument to an IpNetwork.
+///
+/// - "auto" → detect from first non-loopback interface
+/// - CIDR string → parse directly
+fn resolve_network(network: &str) -> Result<IpNetwork, Error> {
+    if network == "auto" {
+        detect_local_network().ok_or_else(|| {
+            Error::InterfaceNotFound(
+                "No active non-loopback network interface found. Specify --network explicitly.".into(),
+            )
+        })
+    } else {
+        network
+            .parse::<IpNetwork>()
+            .map_err(|e| Error::Parse(format!("Invalid CIDR network '{network}': {e}")))
+    }
 }
 
 #[cfg(test)]

@@ -11,6 +11,8 @@ use tokio::time::timeout;
 
 use crate::error::Error;
 use crate::scanner::models::{ArpEntry, Capabilities, DiscoveredHost, DiscoveryMethod, PingResult};
+use crate::scanner::ports::resolve_port_list;
+use crate::scanner::services::{build_open_port, grab_banner};
 
 use ipnetwork::IpNetwork;
 
@@ -83,6 +85,89 @@ impl Scanner {
     /// Return a reference to the scanner config.
     pub fn config(&self) -> &crate::config::ScanConfig {
         &self.config
+    }
+
+    /// Scan open ports on discovered hosts.
+    ///
+    /// For each host, probes the configured port list, grabs banners where possible,
+    /// classifies services, and flags insecure protocols.
+    pub async fn scan_ports(&self, hosts: Vec<DiscoveredHost>) -> Vec<DiscoveredHost> {
+        if hosts.is_empty() {
+            return hosts;
+        }
+
+        let ports = resolve_port_list(&self.config.port_range);
+        let concurrency = self.config.concurrency.min(hosts.len() * ports.len().max(1));
+        let semaphore = std::sync::Arc::new(Semaphore::new(concurrency));
+        let timeout_ms = self.config.timeout_ms;
+
+        let mut results = Vec::new();
+
+        for host in hosts {
+            let permit = semaphore.clone().acquire_owned().await;
+            let ports = ports.clone();
+            let host_ip = host.ip;
+
+            let fut = async move {
+                let mut open_ports = Vec::new();
+                let mut has_https = false;
+
+                // Probe each port
+                let mut handles = Vec::new();
+                for &port in &ports {
+                    let ip = host_ip;
+                    let timeout_dur = Duration::from_millis(timeout_ms);
+                    handles.push(tokio::spawn(async move {
+                        match timeout(timeout_dur, TcpStream::connect((ip, port))).await {
+                            Ok(Ok(stream)) => {
+                                // Convert tokio stream to std for banner grabbing
+                                let std_stream = stream.into_std().ok()?;
+                                let banner_timeout = Duration::from_millis(timeout_ms.min(2000));
+                                let banner = tokio::task::spawn_blocking(move || {
+                                    let mut s = std_stream;
+                                    grab_banner(&mut s, banner_timeout)
+                                })
+                                .await
+                                .ok()??;
+                                Some((port, banner))
+                            }
+                            _ => None,
+                        }
+                    }));
+                }
+
+                for handle in handles {
+                    if let Ok(Some((port, banner))) = handle.await {
+                        if port == 443 {
+                            has_https = true;
+                        }
+                        let banner_str = Some(banner.as_str());
+                        open_ports.push(build_open_port(port, banner_str, false)); // host_has_https set below
+                    }
+                }
+
+                (host_ip, open_ports, has_https)
+            };
+
+            let (_ip, mut open_ports, has_https) = fut.await;
+            drop(permit);
+
+            // Now update is_insecure for HTTP ports based on whether this host has HTTPS
+            if has_https {
+                for port in &mut open_ports {
+                    if port.service == crate::scanner::models::ServiceType::Http {
+                        port.is_insecure = false;
+                    }
+                }
+            }
+
+            // Build updated host
+            let mut updated_host = host;
+            updated_host.open_ports = open_ports;
+            results.push(updated_host);
+        }
+
+        results
     }
 }
 
@@ -382,28 +467,26 @@ pub fn detect_local_network() -> Option<IpNetwork> {
 /// - Prefer MAC from ARP table
 /// - If both ICMP and TCP found the same IP, use `Merged` method
 /// - Hostname resolution is deferred (not done here)
+/// - RTT is taken from the first ping result for each IP
 pub fn merge_results(ping_results: &[PingResult], arp_entries: &[ArpEntry]) -> Vec<DiscoveredHost> {
     use std::collections::HashMap;
 
     // Build ARP lookup by IP
     let arp_map: HashMap<IpAddr, macaddr::MacAddr6> = arp_entries.iter().map(|e| (e.ip, e.mac)).collect();
 
-    // Group ping results by IP
-    let mut host_map: HashMap<IpAddr, (bool, bool)> = HashMap::new(); // (icmp_alive, tcp_alive)
+    // Group ping results by IP, keeping first RTT seen
+    let mut host_map: HashMap<IpAddr, Option<u128>> = HashMap::new();
     for pr in ping_results {
         if !pr.alive {
             continue;
         }
-        let entry = host_map.entry(pr.ip).or_insert((false, false));
-        // We can't distinguish ICMP vs TCP from PingResult alone in this simplified version
-        // In a full implementation, we'd tag each PingResult with its source
-        entry.0 = true; // Mark as found
+        host_map.entry(pr.ip).or_insert(pr.rtt_ms);
     }
 
     // Build discovered hosts
     let mut hosts: Vec<DiscoveredHost> = host_map
-        .into_keys()
-        .map(|ip| {
+        .into_iter()
+        .map(|(ip, rtt_ms)| {
             let mac = arp_map.get(&ip).copied();
             DiscoveredHost {
                 ip,
@@ -411,6 +494,7 @@ pub fn merge_results(ping_results: &[PingResult], arp_entries: &[ArpEntry]) -> V
                 hostname: None,
                 method: DiscoveryMethod::Tcp, // Default; would be refined with source tagging
                 open_ports: vec![],
+                rtt_ms,
             }
         })
         .collect();

@@ -3,6 +3,45 @@
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
+/// Detected service type on an open port.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ServiceType {
+    Http,
+    Https,
+    Ssh,
+    Telnet,
+    Ftp,
+    Rtsp,
+    Mqtt,
+    Upnp,
+    Smtp,
+    Dns,
+    Unknown,
+}
+
+/// Network protocol used for port scanning.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Protocol {
+    Tcp,
+}
+
+/// An open port with service detection metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenPort {
+    /// Port number (1-65535).
+    pub port: u16,
+    /// Detected service type.
+    pub service: ServiceType,
+    /// Banner text grabbed from the service, if available.
+    pub banner: Option<String>,
+    /// Network protocol used.
+    pub protocol: Protocol,
+    /// Whether this service is considered insecure.
+    pub is_insecure: bool,
+}
+
 /// A host discovered during network scanning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoveredHost {
@@ -15,7 +54,9 @@ pub struct DiscoveredHost {
     /// How this host was discovered.
     pub method: DiscoveryMethod,
     /// Open ports detected on this host.
-    pub open_ports: Vec<u16>,
+    pub open_ports: Vec<OpenPort>,
+    /// Round-trip time in milliseconds, if measured.
+    pub rtt_ms: Option<u128>,
 }
 
 /// The method by which a host was discovered.
@@ -76,7 +117,23 @@ mod tests {
             mac: Some("aa:bb:cc:dd:ee:ff".parse().unwrap()),
             hostname: Some("myhost.local".into()),
             method: DiscoveryMethod::Icmp,
-            open_ports: vec![22, 80],
+            open_ports: vec![
+                OpenPort {
+                    port: 22,
+                    service: ServiceType::Ssh,
+                    banner: None,
+                    protocol: Protocol::Tcp,
+                    is_insecure: false,
+                },
+                OpenPort {
+                    port: 80,
+                    service: ServiceType::Http,
+                    banner: None,
+                    protocol: Protocol::Tcp,
+                    is_insecure: true,
+                },
+            ],
+            rtt_ms: Some(5),
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("192.168.1.10"));
@@ -95,14 +152,16 @@ mod tests {
             "mac": null,
             "hostname": null,
             "method": "tcp",
-            "open_ports": [443]
+            "open_ports": [{"port": 443, "service": "https", "banner": null, "protocol": "tcp", "is_insecure": false}],
+            "rtt_ms": null
         }"#;
         let host: DiscoveredHost = serde_json::from_str(json).unwrap();
         assert_eq!(host.ip.to_string(), "10.0.0.1");
         assert!(host.mac.is_none());
         assert!(host.hostname.is_none());
         assert!(matches!(host.method, DiscoveryMethod::Tcp));
-        assert_eq!(host.open_ports, vec![443]);
+        assert_eq!(host.open_ports.len(), 1);
+        assert_eq!(host.open_ports[0].port, 443);
     }
 
     #[test]
@@ -160,6 +219,7 @@ mod tests {
             hostname: None,
             method: DiscoveryMethod::Tcp,
             open_ports: vec![],
+            rtt_ms: None,
         };
         let debug = format!("{:?}", host);
         assert!(debug.contains("127.0.0.1"));
@@ -173,10 +233,58 @@ mod tests {
             mac: Some("00:11:22:33:44:55".parse().unwrap()),
             hostname: Some("test".into()),
             method: DiscoveryMethod::Arp,
-            open_ports: vec![80],
+            open_ports: vec![OpenPort {
+                port: 80,
+                service: ServiceType::Http,
+                banner: None,
+                protocol: Protocol::Tcp,
+                is_insecure: true,
+            }],
+            rtt_ms: Some(3),
         };
         let cloned = host.clone();
         assert_eq!(host.ip, cloned.ip);
         assert_eq!(host.mac, cloned.mac);
+    }
+
+    #[test]
+    fn service_type_variants() {
+        assert_eq!(serde_json::to_string(&ServiceType::Http).unwrap(), r#""http""#);
+        assert_eq!(serde_json::to_string(&ServiceType::Https).unwrap(), r#""https""#);
+        assert_eq!(serde_json::to_string(&ServiceType::Ssh).unwrap(), r#""ssh""#);
+        assert_eq!(serde_json::to_string(&ServiceType::Telnet).unwrap(), r#""telnet""#);
+        assert_eq!(serde_json::to_string(&ServiceType::Ftp).unwrap(), r#""ftp""#);
+        assert_eq!(serde_json::to_string(&ServiceType::Unknown).unwrap(), r#""unknown""#);
+    }
+
+    #[test]
+    fn protocol_tcp_serializes() {
+        assert_eq!(serde_json::to_string(&Protocol::Tcp).unwrap(), r#""tcp""#);
+    }
+
+    #[test]
+    fn open_port_serializes() {
+        let port = OpenPort {
+            port: 22,
+            service: ServiceType::Ssh,
+            banner: Some("SSH-2.0-OpenSSH_8.9".into()),
+            protocol: Protocol::Tcp,
+            is_insecure: false,
+        };
+        let json = serde_json::to_string(&port).unwrap();
+        assert!(json.contains("22"));
+        assert!(json.contains("ssh"));
+        assert!(json.contains("SSH-2.0"));
+        assert!(json.contains("false"));
+    }
+
+    #[test]
+    fn open_port_deserializes() {
+        let json = r#"{"port": 80, "service": "http", "banner": null, "protocol": "tcp", "is_insecure": true}"#;
+        let port: OpenPort = serde_json::from_str(json).unwrap();
+        assert_eq!(port.port, 80);
+        assert_eq!(port.service, ServiceType::Http);
+        assert!(port.banner.is_none());
+        assert!(port.is_insecure);
     }
 }
