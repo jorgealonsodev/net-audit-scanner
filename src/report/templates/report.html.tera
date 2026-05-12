@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>netascan — Security Audit Report</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem; }
+        h1 { color: #1a1a2e; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+        th { background: #16213e; color: white; }
+    </style>
+</head>
+<body>
+    <h1>netascan — Security Audit Report</h1>
+    <p>Generated: {{ generated_at }}</p>
+    <p>Network: {{ network }}</p>
+
+    <h2>Summary</h2>
+    <p>Total hosts: {{ hosts | length }}</p>
+
+    <h2>Devices</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>IP</th>
+                <th>MAC</th>
+                <th>Vendor</th>
+                <th>Open Ports</th>
+                <th>CVEs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for host in hosts %}
+            <tr>
+                <td>{{ host.ip }}</td>
+                <td>{{ host.mac }}</td>
+                <td>{{ host.vendor }}</td>
+                <td>{{ host.open_ports | length }}</td>
+                <td>{{ host.cves | length }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

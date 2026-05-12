@@ -1,0 +1,4 @@
+# Clippy configuration — pedantic lints with selective allows
+msrv = "1.80"
+disallowed-methods = []
+doc-valid-idents = ["CLI", "CVE", "NVD", "OUI", "API", "TCP", "UDP", "HTTP", "HTTPS", "JSON", "HTML", "CIDR", "MAC", "IoT", "NAS", "DNS", "mDNS", "UPnP", "RTSP", "MQTT", "SSH", "FTP", "Telnet", "SQLite"]

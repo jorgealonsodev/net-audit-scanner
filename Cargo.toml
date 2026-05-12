@@ -1,0 +1,41 @@
+[package]
+name = "netascan"
+version = "0.1.0"
+edition = "2024"
+description = "Network security audit CLI tool"
+license = "MIT"
+
+[[bin]]
+name = "netascan"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+pnet = "0.34"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tera = "1"
+axum = "0.7"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "1"
+ipnetwork = "0.20"
+macaddr = "1"
+dirs = "5"
+toml = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+include_dir = "0.7"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+criterion = "0.5"
+tokio-test = "0.4"
+
+[[bench]]
+name = "benchmark"
+harness = false
