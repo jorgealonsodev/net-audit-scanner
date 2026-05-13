@@ -1,12 +1,10 @@
-# Build artifacts
+# Build output
 /target/
-**/*.rs.bk
 
-# Database files
-*.db
-
-# Application data
-/.netascan/
+# Environment variables — never commit
+.env
+.env.local
+.env.*.local
 
 # IDE
 .idea/
@@ -14,10 +12,11 @@
 *.swp
 *.swo
 
-# OS
+# macOS
 .DS_Store
-Thumbs.db
 
-# Python
-helper/__pycache__/
-helper/*.pyc
+# Cargo lock for libraries (keep for binaries)
+# Cargo.lock is intentionally tracked for binary crates
+
+# Benchmarks output
+/criterion/
