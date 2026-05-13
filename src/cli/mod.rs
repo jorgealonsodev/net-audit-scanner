@@ -73,20 +73,26 @@ pub async fn run() -> Result<(), Error> {
 
             // Warn about unavailable methods
             if !caps.can_icmp {
-                tracing::warn!("ICMP sweep unavailable (requires root or CAP_NET_RAW). Using TCP + ARP only.");
+                eprintln!("[!] ICMP sweep unavailable (requires root or CAP_NET_RAW). Using TCP + ARP only.");
             }
 
             // Capture start time for persistence
             let started_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
 
+            eprintln!("[*] Scanning network {} ...", network);
+
             // Run discovery
             let scanner = Scanner::new(config);
             let hosts = scanner.discover_network(&network, &caps).await?;
+
+            eprintln!("[+] Discovered {} host(s)", hosts.len());
+            eprintln!("[*] Scanning ports ...");
 
             // Run port scanning on discovered hosts
             let mut hosts = scanner.scan_ports(hosts).await;
 
             // Enrich with OUI/vendor data
+            eprintln!("[*] Enriching vendor data (OUI) ...");
             let oui_db = if args.no_update {
                 crate::scanner::OuiDb::from_embedded()
             } else {
@@ -96,6 +102,7 @@ pub async fn run() -> Result<(), Error> {
 
             // Enrich with CVE data (unless skipped)
             if !args.no_cve {
+                eprintln!("[*] Checking CVEs ...");
                 let cache_path = cache_dir().join("netascan/cve.db");
                 if let Some(parent) = cache_path.parent() {
                     let _ = std::fs::create_dir_all(parent);
@@ -114,23 +121,29 @@ pub async fn run() -> Result<(), Error> {
                         crate::cve::enrich_cve(&mut hosts, &cache, &client, false).await;
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to open CVE cache at {:?}: {}", cache_path, e);
+                        eprintln!("[!] Failed to open CVE cache: {}", e);
                     }
                 }
+            } else {
+                eprintln!("[*] CVE enrichment skipped (--no-cve)");
             }
 
             // Run default credential checks (non-fatal)
+            eprintln!("[*] Testing default credentials ...");
             let creds_config = crate::config::Config::load()
                 .map(|cfg| cfg.credentials_check)
                 .unwrap_or_default();
             if let Err(e) = crate::security::check_default_credentials(&mut hosts, &creds_config).await {
-                tracing::warn!("Default credential check failed: {}", e);
+                eprintln!("[!] Credential check failed: {}", e);
             }
 
             // Persist scan results (non-fatal)
             if let Err(e) = persist::save_scan(&hosts, &args, &args.network, &started_at) {
-                tracing::warn!("Failed to persist scan results: {}", e);
+                eprintln!("[!] Failed to persist scan results: {}", e);
             }
+
+            eprintln!("[+] Scan complete.");
+            eprintln!();
 
             // Output results
             if args.json {
