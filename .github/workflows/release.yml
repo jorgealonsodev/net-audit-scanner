@@ -1,0 +1,180 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: netascan
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Install cross-compilation tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libpcap-dev
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          ASSET="${{ env.BINARY_NAME }}-${VERSION}-${{ matrix.target }}"
+          mkdir -p dist/${ASSET}
+          cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} dist/${ASSET}/
+          cp README.md LICENSE dist/${ASSET}/ 2>/dev/null || cp README.md dist/${ASSET}/
+          [ -d docs ] && cp -r docs dist/${ASSET}/
+          tar -czf dist/${ASSET}.tar.gz -C dist ${ASSET}
+          echo "ASSET_PATH=dist/${ASSET}.tar.gz" >> $GITHUB_ENV
+          echo "ASSET_NAME=${ASSET}.tar.gz" >> $GITHUB_ENV
+
+      - name: Package (Windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $VERSION = $env:GITHUB_REF_NAME
+          $ASSET = "${{ env.BINARY_NAME }}-${VERSION}-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path "dist/${ASSET}" -Force
+          Copy-Item "target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe" "dist/${ASSET}/"
+          Copy-Item "README.md" "dist/${ASSET}/" -ErrorAction SilentlyContinue
+          if (Test-Path "docs") { Copy-Item "docs" "dist/${ASSET}/" -Recurse }
+          Compress-Archive -Path "dist/${ASSET}" -DestinationPath "dist/${ASSET}.zip"
+          echo "ASSET_PATH=dist/${ASSET}.zip" >> $env:GITHUB_ENV
+          echo "ASSET_NAME=${ASSET}.zip" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ASSET_NAME }}
+          path: ${{ env.ASSET_PATH }}
+
+  deb:
+    name: Build .deb package
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ubuntu-deb-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ubuntu-deb-cargo-
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libpcap-dev
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Build .deb
+        run: cargo deb
+
+      - name: Rename with version
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          DEB=$(ls target/debian/*.deb | head -1)
+          DEST="target/debian/netascan-${VERSION}-amd64.deb"
+          mv "$DEB" "$DEST"
+          echo "DEB_PATH=$DEST" >> $GITHUB_ENV
+          echo "DEB_NAME=netascan-${VERSION}-amd64.deb" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DEB_NAME }}
+          path: ${{ env.DEB_PATH }}
+
+  release:
+    name: Publish GitHub Release
+    needs: [build, deb]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Extract release notes from CHANGELOG
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          if [ -f CHANGELOG.md ]; then
+            # Extract section for this version between two version headers
+            awk "/^## \[?${VERSION#v}\]?/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md > release_notes.md
+          fi
+          if [ ! -s release_notes.md ]; then
+            echo "See CHANGELOG.md for full details." > release_notes.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }} - Network Security Audit CLI
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.deb
+            dist/SHA256SUMS.txt

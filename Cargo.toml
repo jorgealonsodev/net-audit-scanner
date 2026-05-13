@@ -43,6 +43,24 @@ tempfile = "3"
 tower = "0.5"
 http-body-util = "0.1"
 
+[package.metadata.deb]
+name = "netascan"
+maintainer = "Jorge Alonso <jorge@jorgealonsodev.com>"
+copyright = "2026, Jorge Alonso"
+license-file = ["LICENSE", "0"]
+extended-description = """\
+netascan is a fast network security audit CLI that discovers devices on your LAN,
+fingerprints services, checks for known CVEs, tests default credentials, and
+generates HTML/JSON reports — all from a single command."""
+depends = "$auto"
+section = "net"
+priority = "optional"
+assets = [
+    ["target/release/netascan", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/netascan/README.md", "644"],
+    ["docs/user-guide.md", "usr/share/doc/netascan/user-guide.md", "644"],
+]
+
 [[bench]]
 name = "benchmark"
 harness = false
