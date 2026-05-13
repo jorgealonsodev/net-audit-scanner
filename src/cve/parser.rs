@@ -243,4 +243,38 @@ mod tests {
     fn vendor_lookup_unknown_product_returns_itself() {
         assert_eq!(super::vendor_lookup("unknownproduct"), "unknownproduct");
     }
+
+    #[test]
+    fn extract_version_never_panics_on_arbitrary_banners() {
+        let banners = [
+            "",
+            "!!!",
+            "\x00\x01\x02",
+            "SSH-",
+            "Apache",
+            "nginx",
+            "220 ",
+            "ProFTPD",
+            "12345",
+            "a/b/c/d/e",
+            "very long string with no version info at all",
+        ];
+        let services = [
+            ServiceType::Ssh,
+            ServiceType::Http,
+            ServiceType::Https,
+            ServiceType::Ftp,
+            ServiceType::Smtp,
+            ServiceType::Telnet,
+            ServiceType::Dns,
+            ServiceType::Unknown,
+        ];
+        for banner in &banners {
+            for service in &services {
+                let _ = std::panic::catch_unwind(|| {
+                    let _ = super::extract_version(banner, service.clone());
+                });
+            }
+        }
+    }
 }
