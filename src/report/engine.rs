@@ -290,6 +290,22 @@ mod tests {
     }
 
     #[test]
+    fn render_html_fails_with_broken_template() {
+        // Create an engine with a deliberately broken template
+        let mut tera = Tera::default();
+        tera.add_raw_template("broken.tera", "{{ undefined_var }}")
+            .expect("Broken template should parse (Tera allows undefined vars at parse time)");
+        let engine = ReportEngine { tera };
+
+        let hosts: Vec<DiscoveredHost> = vec![];
+        let ctx = ReportContext::from(&hosts);
+        let result = engine.render_html(&ctx);
+        assert!(result.is_err(), "Render with undefined variable should fail");
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Template render error"), "Error should mention template render issue: {err}");
+    }
+
+    #[test]
     fn render_html_context_has_summary_totals() {
         let engine = ReportEngine::new().unwrap();
         let cve = make_cve("CVE-2021-TEST");

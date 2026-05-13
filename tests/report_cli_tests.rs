@@ -147,6 +147,19 @@ fn report_missing_input_file_exits_with_error() {
 }
 
 #[test]
+fn report_invalid_format_exits_with_error() {
+    cli()
+        .arg("report")
+        .arg("--format")
+        .arg("pdf")
+        .arg("--input")
+        .arg("tests/fixtures/scan_result.json")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("valid formats").or(predicate::str::contains("html")).or(predicate::str::contains("json")));
+}
+
+#[test]
 fn report_last_prints_not_yet_implemented() {
     cli()
         .arg("report")
