@@ -5,8 +5,8 @@
 
 use crate::cve::models::CveMatch;
 use anyhow::Result;
-use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
+use sqlx::sqlite::SqlitePoolOptions;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Default cache TTL in seconds (24 hours).
@@ -24,10 +24,7 @@ impl CveCache {
     ///
     /// The schema is created automatically if it does not exist.
     pub async fn open(path: &str) -> Result<Self> {
-        let pool = SqlitePoolOptions::new()
-            .max_connections(2)
-            .connect(path)
-            .await?;
+        let pool = SqlitePoolOptions::new().max_connections(2).connect(path).await?;
 
         let cache = Self {
             pool,
@@ -75,14 +72,13 @@ impl CveCache {
         let now = Self::unix_now();
         let cutoff = now - self.ttl_secs;
 
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT response_json FROM cve_cache WHERE cpe_query = ? AND fetched_at > ?",
-        )
-        .bind(cpe)
-        .bind(cutoff)
-        .fetch_optional(&self.pool)
-        .await
-        .ok()?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT response_json FROM cve_cache WHERE cpe_query = ? AND fetched_at > ?")
+                .bind(cpe)
+                .bind(cutoff)
+                .fetch_optional(&self.pool)
+                .await
+                .ok()?;
 
         let (json,) = row?;
         serde_json::from_str(&json).ok()
@@ -182,9 +178,7 @@ mod tests {
     #[tokio::test]
     async fn cache_lookup_returns_none_when_missing() {
         let cache = create_test_cache().await;
-        let result = cache
-            .lookup("cpe:2.3:a:unknown:product:1.0:*:*:*:*:*:*:*")
-            .await;
+        let result = cache.lookup("cpe:2.3:a:unknown:product:1.0:*:*:*:*:*:*:*").await;
         assert!(result.is_none());
     }
 
@@ -257,10 +251,7 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        let cache = CveCache::with_pool(pool)
-            .await
-            .unwrap()
-            .with_ttl(60); // 1 minute TTL
+        let cache = CveCache::with_pool(pool).await.unwrap().with_ttl(60); // 1 minute TTL
 
         let cpe = "cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*";
         let matches = vec![sample_match()];

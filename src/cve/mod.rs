@@ -14,7 +14,7 @@ pub mod models;
 pub mod parser;
 
 use crate::scanner::models::DiscoveredHost;
-use cache::{query_nvd_cached, CveCache};
+use cache::{CveCache, query_nvd_cached};
 use client::NvdClient;
 
 /// Enrich discovered hosts with CVE data from NVD.
@@ -34,12 +34,7 @@ use client::NvdClient;
 ///
 /// NVD or cache errors are logged as warnings and do **not** abort the scan.
 /// Affected ports simply receive an empty `cves` vector.
-pub async fn enrich_cve(
-    hosts: &mut [DiscoveredHost],
-    cache: &CveCache,
-    client: &NvdClient,
-    skip: bool,
-) {
+pub async fn enrich_cve(hosts: &mut [DiscoveredHost], cache: &CveCache, client: &NvdClient, skip: bool) {
     if skip {
         return;
     }
@@ -67,13 +62,7 @@ pub async fn enrich_cve(
             match query_nvd_cached(client, cache, &cpe).await {
                 Ok(matches) => port.cves = matches,
                 Err(e) => {
-                    tracing::warn!(
-                        "CVE lookup failed for {}:{} (CPE: {}): {}",
-                        host.ip,
-                        port.port,
-                        cpe,
-                        e
-                    );
+                    tracing::warn!("CVE lookup failed for {}:{} (CPE: {}): {}", host.ip, port.port, cpe, e);
                     port.cves = Vec::new();
                 }
             }
@@ -116,6 +105,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }
     }
 
@@ -203,6 +193,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }];
 
         enrich_cve(&mut hosts, &cache, &client, false).await;
@@ -352,6 +343,7 @@ mod tests {
             ],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }];
 
         enrich_cve(&mut hosts, &cache, &client, false).await;

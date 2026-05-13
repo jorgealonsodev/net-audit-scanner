@@ -63,6 +63,9 @@ pub struct DiscoveredHost {
     pub rtt_ms: Option<u128>,
     /// Vendor name from OUI/MAC fingerprinting, if available.
     pub vendor: Option<String>,
+    /// OS hint inferred from TTL or service banners, if available.
+    #[serde(default)]
+    pub os_hint: Option<String>,
 }
 
 /// The method by which a host was discovered.
@@ -97,6 +100,9 @@ pub struct PingResult {
     pub alive: bool,
     /// Round-trip time in milliseconds, if alive.
     pub rtt_ms: Option<u128>,
+    /// OS hint derived from TTL in ICMP reply, if available.
+    #[serde(default)]
+    pub ttl_hint: Option<String>,
 }
 
 /// Detected platform capabilities for network scanning.
@@ -143,6 +149,7 @@ mod tests {
             ],
             rtt_ms: Some(5),
             vendor: None,
+            os_hint: None,
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("192.168.1.10"));
@@ -200,6 +207,7 @@ mod tests {
             ip: "10.0.0.5".parse().unwrap(),
             alive: true,
             rtt_ms: Some(12),
+            ttl_hint: None,
         };
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("10.0.0.5"));
@@ -230,6 +238,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         };
         let debug = format!("{:?}", host);
         assert!(debug.contains("127.0.0.1"));
@@ -253,6 +262,7 @@ mod tests {
             }],
             rtt_ms: Some(3),
             vendor: None,
+            os_hint: None,
         };
         let cloned = host.clone();
         assert_eq!(host.ip, cloned.ip);
@@ -279,6 +289,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: Some("Apple, Inc.".into()),
+            os_hint: None,
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("Apple, Inc."));
@@ -320,7 +331,8 @@ mod tests {
 
     #[test]
     fn open_port_deserializes_with_empty_cves() {
-        let json = r#"{"port": 80, "service": "http", "banner": null, "protocol": "tcp", "is_insecure": true, "cves": []}"#;
+        let json =
+            r#"{"port": 80, "service": "http", "banner": null, "protocol": "tcp", "is_insecure": true, "cves": []}"#;
         let port: OpenPort = serde_json::from_str(json).unwrap();
         assert!(port.cves.is_empty());
     }
@@ -350,5 +362,61 @@ mod tests {
         assert_eq!(port.service, ServiceType::Http);
         assert!(port.banner.is_none());
         assert!(port.is_insecure);
+    }
+
+    // ─── os_hint field tests (device-fingerprint) ───
+
+    #[test]
+    fn discovered_host_os_hint_none_serializes_as_null() {
+        let host = DiscoveredHost {
+            ip: "192.168.1.1".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Icmp,
+            open_ports: vec![],
+            rtt_ms: None,
+            vendor: None,
+            os_hint: None,
+        };
+        let json = serde_json::to_string(&host).unwrap();
+        assert!(json.contains("\"os_hint\":null"));
+    }
+
+    #[test]
+    fn discovered_host_os_hint_some_serializes_value() {
+        let host = DiscoveredHost {
+            ip: "192.168.1.1".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Icmp,
+            open_ports: vec![],
+            rtt_ms: None,
+            vendor: None,
+            os_hint: Some("Linux".into()),
+        };
+        let json = serde_json::to_string(&host).unwrap();
+        assert!(json.contains("\"os_hint\":\"Linux\""));
+    }
+
+    #[test]
+    fn discovered_host_os_hint_deserializes_from_json() {
+        let json = r#"{"ip":"10.0.0.1","mac":null,"hostname":null,"method":"tcp","open_ports":[],"rtt_ms":null,"os_hint":"Windows"}"#;
+        let host: DiscoveredHost = serde_json::from_str(json).unwrap();
+        assert_eq!(host.os_hint, Some("Windows".into()));
+    }
+
+    #[test]
+    fn discovered_host_os_hint_deserializes_null() {
+        let json = r#"{"ip":"10.0.0.1","mac":null,"hostname":null,"method":"tcp","open_ports":[],"rtt_ms":null,"os_hint":null}"#;
+        let host: DiscoveredHost = serde_json::from_str(json).unwrap();
+        assert!(host.os_hint.is_none());
+    }
+
+    #[test]
+    fn discovered_host_os_hint_backward_compat_missing_field() {
+        // JSON without os_hint field should still deserialize (serde default)
+        let json = r#"{"ip":"10.0.0.1","mac":null,"hostname":null,"method":"tcp","open_ports":[],"rtt_ms":null}"#;
+        let host: DiscoveredHost = serde_json::from_str(json).unwrap();
+        assert!(host.os_hint.is_none());
     }
 }

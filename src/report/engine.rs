@@ -1,7 +1,7 @@
 //! Report generation engine using embedded Tera templates.
 
 use anyhow::Result;
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use tera::Tera;
 
 use crate::scanner::models::DiscoveredHost;
@@ -50,8 +50,7 @@ impl ReportEngine {
 
     /// Serializes the report context to pretty-printed JSON.
     pub fn render_json(&self, ctx: &ReportContext) -> Result<String> {
-        serde_json::to_string_pretty(ctx)
-            .map_err(|e| anyhow::anyhow!("JSON serialization error: {}", e))
+        serde_json::to_string_pretty(ctx).map_err(|e| anyhow::anyhow!("JSON serialization error: {}", e))
     }
 
     /// Convenience: generate HTML from raw scan data.
@@ -95,6 +94,7 @@ mod tests {
             open_ports: ports,
             rtt_ms: None,
             vendor: Some("Test Vendor".into()),
+            os_hint: None,
         }
     }
 
@@ -302,7 +302,10 @@ mod tests {
         let result = engine.render_html(&ctx);
         assert!(result.is_err(), "Render with undefined variable should fail");
         let err = result.unwrap_err().to_string();
-        assert!(err.contains("Template render error"), "Error should mention template render issue: {err}");
+        assert!(
+            err.contains("Template render error"),
+            "Error should mention template render issue: {err}"
+        );
     }
 
     #[test]

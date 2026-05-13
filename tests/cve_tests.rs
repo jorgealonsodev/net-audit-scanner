@@ -7,9 +7,7 @@ use netascan::cve::cache::CveCache;
 use netascan::cve::client::NvdClient;
 use netascan::cve::enrich_cve;
 use netascan::cve::models::Severity;
-use netascan::scanner::models::{
-    DiscoveredHost, DiscoveryMethod, OpenPort, Protocol, ServiceType,
-};
+use netascan::scanner::models::{DiscoveredHost, DiscoveryMethod, OpenPort, Protocol, ServiceType};
 use sqlx::sqlite::SqlitePoolOptions;
 use std::net::IpAddr;
 use wiremock::matchers::{method, path, query_param};
@@ -40,6 +38,7 @@ fn make_host_with_banner(ip: &str, port: u16, banner: &str, service: ServiceType
         }],
         rtt_ms: None,
         vendor: None,
+        os_hint: None,
     }
 }
 

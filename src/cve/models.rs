@@ -52,26 +52,11 @@ mod tests {
 
     #[test]
     fn severity_serializes_to_lowercase() {
-        assert_eq!(
-            serde_json::to_string(&Severity::Critical).unwrap(),
-            r#""critical""#
-        );
-        assert_eq!(
-            serde_json::to_string(&Severity::High).unwrap(),
-            r#""high""#
-        );
-        assert_eq!(
-            serde_json::to_string(&Severity::Medium).unwrap(),
-            r#""medium""#
-        );
-        assert_eq!(
-            serde_json::to_string(&Severity::Low).unwrap(),
-            r#""low""#
-        );
-        assert_eq!(
-            serde_json::to_string(&Severity::Unknown).unwrap(),
-            r#""unknown""#
-        );
+        assert_eq!(serde_json::to_string(&Severity::Critical).unwrap(), r#""critical""#);
+        assert_eq!(serde_json::to_string(&Severity::High).unwrap(), r#""high""#);
+        assert_eq!(serde_json::to_string(&Severity::Medium).unwrap(), r#""medium""#);
+        assert_eq!(serde_json::to_string(&Severity::Low).unwrap(), r#""low""#);
+        assert_eq!(serde_json::to_string(&Severity::Unknown).unwrap(), r#""unknown""#);
     }
 
     #[test]

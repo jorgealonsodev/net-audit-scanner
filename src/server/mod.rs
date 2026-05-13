@@ -3,13 +3,13 @@
 use std::net::SocketAddr;
 
 use axum::{
+    Router,
     extract::Multipart,
     http::StatusCode,
     response::Html,
     routing::{get, post},
-    Router,
 };
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use tokio::signal;
 use tracing::info;
 
@@ -47,9 +47,7 @@ pub async fn run(args: ServeArgs) -> Result<(), Error> {
 }
 
 async fn shutdown_signal() {
-    signal::ctrl_c()
-        .await
-        .expect("Failed to install Ctrl+C handler");
+    signal::ctrl_c().await.expect("Failed to install Ctrl+C handler");
 }
 
 /// GET / — Serve the upload form.
@@ -71,19 +69,9 @@ async fn health() -> &'static str {
 async fn report(mut multipart: Multipart) -> Result<Html<String>, StatusCode> {
     let mut file_bytes: Option<Vec<u8>> = None;
 
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?
-    {
+    while let Some(field) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
         if field.name().is_some_and(|name| name == "file") {
-            file_bytes = Some(
-                field
-                    .bytes()
-                    .await
-                    .map_err(|_| StatusCode::BAD_REQUEST)?
-                    .to_vec(),
-            );
+            file_bytes = Some(field.bytes().await.map_err(|_| StatusCode::BAD_REQUEST)?.to_vec());
         }
     }
 
@@ -93,8 +81,7 @@ async fn report(mut multipart: Multipart) -> Result<Html<String>, StatusCode> {
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let hosts: Vec<DiscoveredHost> =
-        serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let hosts: Vec<DiscoveredHost> = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
 
     let ctx = ReportContext::from(&hosts);
 
@@ -140,12 +127,7 @@ mod tests {
     #[tokio::test]
     async fn index_returns_html_with_form() {
         let response = app()
-            .oneshot(
-                Request::builder()
-                    .uri("/")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -154,21 +136,13 @@ mod tests {
         let html = String::from_utf8_lossy(&body);
 
         assert!(html.contains("<form"), "Response should contain a form element");
-        assert!(
-            html.contains("action=\"/report\""),
-            "Form should post to /report"
-        );
+        assert!(html.contains("action=\"/report\""), "Form should post to /report");
     }
 
     #[tokio::test]
     async fn index_accepts_json_files() {
         let response = app()
-            .oneshot(
-                Request::builder()
-                    .uri("/")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -186,12 +160,7 @@ mod tests {
     #[tokio::test]
     async fn health_returns_ok() {
         let response = app()
-            .oneshot(
-                Request::builder()
-                    .uri("/health")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -301,9 +270,7 @@ mod tests {
         let boundary = "----TestBoundary123";
         let mut body = Vec::new();
         body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
-        body.extend_from_slice(
-            "Content-Disposition: form-data; name=\"other\"; filename=\"data.txt\"\r\n".as_bytes(),
-        );
+        body.extend_from_slice("Content-Disposition: form-data; name=\"other\"; filename=\"data.txt\"\r\n".as_bytes());
         body.extend_from_slice("Content-Type: text/plain\r\n\r\n".as_bytes());
         body.extend_from_slice(b"some data");
         body.extend_from_slice(format!("\r\n--{}--\r\n", boundary).as_bytes());

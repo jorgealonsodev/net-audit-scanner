@@ -10,6 +10,7 @@ use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
 use crate::error::Error;
+use crate::fingerprint::{infer_os_from_banner, ttl_to_os_hint};
 use crate::scanner::models::{ArpEntry, Capabilities, DiscoveredHost, DiscoveryMethod, PingResult};
 use crate::scanner::ports::resolve_port_list;
 use crate::scanner::services::{build_open_port, grab_banner};
@@ -165,10 +166,26 @@ impl Scanner {
             // Build updated host
             let mut updated_host = host;
             updated_host.open_ports = open_ports;
+            // Apply banner hints: banner takes priority over TTL hint
+            apply_banner_hints_to_host(&mut updated_host);
             results.push(updated_host);
         }
 
         results
+    }
+}
+
+/// Scan all open port banners for a host and override `os_hint` if a banner
+/// provides a more specific OS inference than the TTL hint.
+fn apply_banner_hints_to_host(host: &mut DiscoveredHost) {
+    for port in &host.open_ports {
+        if let Some(ref banner) = port.banner {
+            if let Some(os) = infer_os_from_banner(banner) {
+                host.os_hint = Some(os);
+                // Banner is more specific — stop at first match
+                return;
+            }
+        }
     }
 }
 
@@ -302,6 +319,7 @@ pub async fn tcp_sweep(ips: &[IpAddr], ports: &[u16], semaphore: &std::sync::Arc
                 ip,
                 alive: true,
                 rtt_ms: None,
+                ttl_hint: None,
             });
             // Store open_ports in the host — we'll merge them later
             // For now, the PingResult doesn't carry ports; merge handles it
@@ -312,6 +330,21 @@ pub async fn tcp_sweep(ips: &[IpAddr], ports: &[u16], semaphore: &std::sync::Arc
     }
 
     results
+}
+
+/// Extract TTL from a raw IP packet buffer.
+///
+/// The packet starts at the IP header. TTL is at byte offset 8 in a standard
+/// IPv4 header (IHL=5). Returns None if the buffer is too short.
+fn extract_ttl_from_bytes(packet: &[u8]) -> Option<u8> {
+    if packet.len() < 20 {
+        return None;
+    }
+    let ihl = (packet[0] & 0x0F) as usize * 4;
+    if packet.len() < ihl + 8 {
+        return None;
+    }
+    Some(packet[ihl + 8])
 }
 
 /// ICMP ping sweep using pnet raw sockets.
@@ -408,10 +441,15 @@ pub async fn icmp_sweep(ips: &[IpAddr], semaphore: &std::sync::Arc<Semaphore>) -
 
                     if icmp_type == icmp::IcmpTypes::EchoReply && matches {
                         let rtt = start.elapsed().as_millis();
+                        // Extract TTL from IP header byte 8 (standard IPv4, IHL=5)
+                        let ttl_hint = extract_ttl_from_bytes(&reply_bytes)
+                            .and_then(ttl_to_os_hint)
+                            .map(String::from);
                         results.lock().unwrap().push(PingResult {
                             ip: IpAddr::V4(ip_v4),
                             alive: true,
                             rtt_ms: Some(rtt),
+                            ttl_hint,
                         });
                         return;
                     }
@@ -475,19 +513,19 @@ pub fn merge_results(ping_results: &[PingResult], arp_entries: &[ArpEntry]) -> V
     // Build ARP lookup by IP
     let arp_map: HashMap<IpAddr, macaddr::MacAddr6> = arp_entries.iter().map(|e| (e.ip, e.mac)).collect();
 
-    // Group ping results by IP, keeping first RTT seen
-    let mut host_map: HashMap<IpAddr, Option<u128>> = HashMap::new();
+    // Group ping results by IP, keeping first RTT and first ttl_hint seen
+    let mut host_map: HashMap<IpAddr, (Option<u128>, Option<String>)> = HashMap::new();
     for pr in ping_results {
         if !pr.alive {
             continue;
         }
-        host_map.entry(pr.ip).or_insert(pr.rtt_ms);
+        host_map.entry(pr.ip).or_insert((pr.rtt_ms, pr.ttl_hint.clone()));
     }
 
     // Build discovered hosts
     let mut hosts: Vec<DiscoveredHost> = host_map
         .into_iter()
-        .map(|(ip, rtt_ms)| {
+        .map(|(ip, (rtt_ms, ttl_hint))| {
             let mac = arp_map.get(&ip).copied();
             DiscoveredHost {
                 ip,
@@ -497,6 +535,7 @@ pub fn merge_results(ping_results: &[PingResult], arp_entries: &[ArpEntry]) -> V
                 open_ports: vec![],
                 rtt_ms,
                 vendor: None,
+                os_hint: ttl_hint,
             }
         })
         .collect();
@@ -626,6 +665,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             ip: "192.168.1.10".parse().unwrap(),
             alive: true,
             rtt_ms: Some(5),
+            ttl_hint: None,
         }];
         let hosts = merge_results(&pings, &[]);
         assert_eq!(hosts.len(), 1);
@@ -640,11 +680,13 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
                 ip: "192.168.1.10".parse().unwrap(),
                 alive: true,
                 rtt_ms: Some(5),
+                ttl_hint: None,
             },
             PingResult {
                 ip: "192.168.1.10".parse().unwrap(),
                 alive: true,
                 rtt_ms: None,
+                ttl_hint: None,
             },
         ];
         let hosts = merge_results(&pings, &[]);
@@ -657,6 +699,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             ip: "192.168.1.10".parse().unwrap(),
             alive: true,
             rtt_ms: Some(5),
+            ttl_hint: None,
         }];
         let arp = vec![ArpEntry {
             ip: "192.168.1.10".parse().unwrap(),
@@ -676,11 +719,13 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
                 ip: "192.168.1.20".parse().unwrap(),
                 alive: true,
                 rtt_ms: None,
+                ttl_hint: None,
             },
             PingResult {
                 ip: "192.168.1.10".parse().unwrap(),
                 alive: true,
                 rtt_ms: Some(5),
+                ttl_hint: None,
             },
         ];
         let hosts = merge_results(&pings, &[]);
@@ -697,16 +742,44 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
                 ip: "192.168.1.10".parse().unwrap(),
                 alive: true,
                 rtt_ms: Some(5),
+                ttl_hint: None,
             },
             PingResult {
                 ip: "192.168.1.99".parse().unwrap(),
                 alive: false,
                 rtt_ms: None,
+                ttl_hint: None,
             },
         ];
         let hosts = merge_results(&pings, &[]);
         assert_eq!(hosts.len(), 1);
         assert_eq!(hosts[0].ip.to_string(), "192.168.1.10");
+    }
+
+    #[test]
+    fn merge_results_propagates_ttl_hint_to_os_hint() {
+        let pings = vec![PingResult {
+            ip: "192.168.1.10".parse().unwrap(),
+            alive: true,
+            rtt_ms: Some(5),
+            ttl_hint: Some("Linux/macOS".into()),
+        }];
+        let hosts = merge_results(&pings, &[]);
+        assert_eq!(hosts.len(), 1);
+        assert_eq!(hosts[0].os_hint, Some("Linux/macOS".into()));
+    }
+
+    #[test]
+    fn merge_results_os_hint_none_without_ttl_hint() {
+        let pings = vec![PingResult {
+            ip: "192.168.1.10".parse().unwrap(),
+            alive: true,
+            rtt_ms: Some(5),
+            ttl_hint: None,
+        }];
+        let hosts = merge_results(&pings, &[]);
+        assert_eq!(hosts.len(), 1);
+        assert!(hosts[0].os_hint.is_none());
     }
 
     // ─── Scanner tests ───
@@ -742,5 +815,127 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
         // On a real Linux machine, should find at least one non-loopback interface
         // In CI, this might be None — just verify it doesn't panic
         let _ = result;
+    }
+
+    // ─── apply_banner_hints_to_host tests ───
+
+    #[test]
+    fn apply_banner_hints_overrides_ttl_with_ubuntu() {
+        let mut host = DiscoveredHost {
+            ip: "192.168.1.10".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Icmp,
+            open_ports: vec![crate::scanner::models::OpenPort {
+                port: 22,
+                service: crate::scanner::models::ServiceType::Ssh,
+                banner: Some("SSH-2.0-OpenSSH_8.9p1 Ubuntu-4ubuntu0.5".into()),
+                protocol: crate::scanner::models::Protocol::Tcp,
+                is_insecure: false,
+                cves: vec![],
+            }],
+            rtt_ms: Some(5),
+            vendor: None,
+            os_hint: Some("Linux/macOS".into()), // TTL hint
+        };
+        apply_banner_hints_to_host(&mut host);
+        assert_eq!(host.os_hint, Some("Ubuntu Linux".into()));
+    }
+
+    #[test]
+    fn apply_banner_hints_sets_os_from_banner_when_no_ttl() {
+        let mut host = DiscoveredHost {
+            ip: "192.168.1.10".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Tcp,
+            open_ports: vec![crate::scanner::models::OpenPort {
+                port: 22,
+                service: crate::scanner::models::ServiceType::Ssh,
+                banner: Some("SSH-2.0-OpenSSH_for_Windows_8.1".into()),
+                protocol: crate::scanner::models::Protocol::Tcp,
+                is_insecure: false,
+                cves: vec![],
+            }],
+            rtt_ms: None,
+            vendor: None,
+            os_hint: None,
+        };
+        apply_banner_hints_to_host(&mut host);
+        assert_eq!(host.os_hint, Some("Windows".into()));
+    }
+
+    #[test]
+    fn apply_banner_hints_no_match_keeps_ttl_hint() {
+        let mut host = DiscoveredHost {
+            ip: "192.168.1.10".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Icmp,
+            open_ports: vec![crate::scanner::models::OpenPort {
+                port: 80,
+                service: crate::scanner::models::ServiceType::Http,
+                banner: Some("nginx/1.21.6".into()),
+                protocol: crate::scanner::models::Protocol::Tcp,
+                is_insecure: false,
+                cves: vec![],
+            }],
+            rtt_ms: Some(5),
+            vendor: None,
+            os_hint: Some("Linux/macOS".into()),
+        };
+        apply_banner_hints_to_host(&mut host);
+        // Banner didn't match any OS pattern, TTL hint preserved
+        assert_eq!(host.os_hint, Some("Linux/macOS".into()));
+    }
+
+    #[test]
+    fn apply_banner_hints_empty_ports_no_change() {
+        let mut host = DiscoveredHost {
+            ip: "192.168.1.10".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Icmp,
+            open_ports: vec![],
+            rtt_ms: Some(5),
+            vendor: None,
+            os_hint: Some("Linux/macOS".into()),
+        };
+        apply_banner_hints_to_host(&mut host);
+        assert_eq!(host.os_hint, Some("Linux/macOS".into()));
+    }
+
+    #[test]
+    fn apply_banner_hints_first_matching_port_wins() {
+        let mut host = DiscoveredHost {
+            ip: "192.168.1.10".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Icmp,
+            open_ports: vec![
+                crate::scanner::models::OpenPort {
+                    port: 22,
+                    service: crate::scanner::models::ServiceType::Ssh,
+                    banner: Some("SSH-2.0-OpenSSH_8.9p1 Debian-10".into()),
+                    protocol: crate::scanner::models::Protocol::Tcp,
+                    is_insecure: false,
+                    cves: vec![],
+                },
+                crate::scanner::models::OpenPort {
+                    port: 80,
+                    service: crate::scanner::models::ServiceType::Http,
+                    banner: Some("Apache/2.4 Windows".into()),
+                    protocol: crate::scanner::models::Protocol::Tcp,
+                    is_insecure: false,
+                    cves: vec![],
+                },
+            ],
+            rtt_ms: Some(5),
+            vendor: None,
+            os_hint: None,
+        };
+        apply_banner_hints_to_host(&mut host);
+        // First matching banner (Debian) wins
+        assert_eq!(host.os_hint, Some("Debian Linux".into()));
     }
 }

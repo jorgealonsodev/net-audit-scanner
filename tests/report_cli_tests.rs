@@ -156,7 +156,11 @@ fn report_invalid_format_exits_with_error() {
         .arg("tests/fixtures/scan_result.json")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("valid formats").or(predicate::str::contains("html")).or(predicate::str::contains("json")));
+        .stderr(
+            predicate::str::contains("valid formats")
+                .or(predicate::str::contains("html"))
+                .or(predicate::str::contains("json")),
+        );
 }
 
 #[test]
@@ -217,7 +221,10 @@ fn report_html_contains_full_report_structure() {
     assert!(stdout.contains("CVE-2021-41617"), "Should contain CVE ID");
     assert!(stdout.contains("HIGH"), "Should show severity in uppercase");
     assert!(stdout.contains("7.8"), "Should show CVSS score");
-    assert!(stdout.contains("OpenSSH sshd vulnerability"), "Should show CVE description");
+    assert!(
+        stdout.contains("OpenSSH sshd vulnerability"),
+        "Should show CVE description"
+    );
 
     // Port details
     assert!(stdout.contains(">22<"), "Should show SSH port");

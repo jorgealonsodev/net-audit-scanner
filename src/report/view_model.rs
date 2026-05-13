@@ -124,11 +124,7 @@ impl From<&Vec<DiscoveredHost>> for ReportContext {
 
 fn format_mac(mac: MacAddr6) -> String {
     let bytes = mac.as_bytes();
-    bytes
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<Vec<_>>()
-        .join(":")
+    bytes.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(":")
 }
 
 #[cfg(test)]
@@ -199,7 +195,12 @@ mod tests {
 
     #[test]
     fn report_port_from_open_port() {
-        let port = make_port(22, ServiceType::Ssh, false, vec![make_cve("CVE-2021-1", Severity::High, Some(7.0))]);
+        let port = make_port(
+            22,
+            ServiceType::Ssh,
+            false,
+            vec![make_cve("CVE-2021-1", Severity::High, Some(7.0))],
+        );
         let report = ReportPort::from(&port);
         assert_eq!(report.port, 22);
         assert_eq!(report.service, "ssh");
@@ -260,18 +261,29 @@ mod tests {
             hostname: Some("myhost.local".into()),
             method: crate::scanner::models::DiscoveryMethod::Icmp,
             open_ports: vec![
-                make_port(22, ServiceType::Ssh, false, vec![
-                    make_cve("CVE-2021-001", Severity::High, Some(7.5)),
-                    make_cve("CVE-2021-002", Severity::Medium, Some(5.0)),
-                ]),
-                make_port(80, ServiceType::Http, true, vec![
-                    make_cve("CVE-2021-003", Severity::Critical, Some(9.8)),
-                    make_cve("CVE-2021-004", Severity::High, Some(7.0)),
-                    make_cve("CVE-2021-005", Severity::Medium, Some(4.3)),
-                ]),
+                make_port(
+                    22,
+                    ServiceType::Ssh,
+                    false,
+                    vec![
+                        make_cve("CVE-2021-001", Severity::High, Some(7.5)),
+                        make_cve("CVE-2021-002", Severity::Medium, Some(5.0)),
+                    ],
+                ),
+                make_port(
+                    80,
+                    ServiceType::Http,
+                    true,
+                    vec![
+                        make_cve("CVE-2021-003", Severity::Critical, Some(9.8)),
+                        make_cve("CVE-2021-004", Severity::High, Some(7.0)),
+                        make_cve("CVE-2021-005", Severity::Medium, Some(4.3)),
+                    ],
+                ),
             ],
             rtt_ms: Some(5),
             vendor: Some("Apple, Inc.".into()),
+            os_hint: None,
         };
         let report = ReportHost::from(&host);
         assert_eq!(report.ip, "192.168.1.10");
@@ -297,6 +309,7 @@ mod tests {
             ],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         };
         let report = ReportHost::from(&host);
         // Same CVE on both ports → deduplicated to 1
@@ -312,11 +325,10 @@ mod tests {
             mac: None,
             hostname: None,
             method: crate::scanner::models::DiscoveryMethod::Arp,
-            open_ports: vec![
-                make_port(443, ServiceType::Https, false, vec![]),
-            ],
+            open_ports: vec![make_port(443, ServiceType::Https, false, vec![])],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         };
         let report = ReportHost::from(&host);
         assert!(report.cves.is_empty());
@@ -334,6 +346,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         };
         let report = ReportHost::from(&host);
         assert_eq!(report.mac, Some("00:11:22:33:44:55".into()));
@@ -349,6 +362,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         };
         let report = ReportHost::from(&host);
         assert!(report.mac.is_none());
@@ -368,6 +382,7 @@ mod tests {
             ],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         };
         let report = ReportHost::from(&host);
         assert_eq!(report.insecure_ports, 2);
@@ -380,13 +395,15 @@ mod tests {
             mac: None,
             hostname: Some("router".into()),
             method: crate::scanner::models::DiscoveryMethod::Icmp,
-            open_ports: vec![
-                make_port(80, ServiceType::Http, true, vec![
-                    make_cve("CVE-2021-TEST", Severity::High, Some(7.5)),
-                ]),
-            ],
+            open_ports: vec![make_port(
+                80,
+                ServiceType::Http,
+                true,
+                vec![make_cve("CVE-2021-TEST", Severity::High, Some(7.5))],
+            )],
             rtt_ms: Some(10),
             vendor: None,
+            os_hint: None,
         };
         let report = ReportHost::from(&host);
         let json = serde_json::to_string(&report).unwrap();
@@ -410,6 +427,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                os_hint: None,
             },
             DiscoveredHost {
                 ip: "192.168.1.11".parse().unwrap(),
@@ -419,6 +437,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                os_hint: None,
             },
         ];
         let ctx = ReportContext::from(&hosts);
@@ -449,6 +468,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }];
         let ctx = ReportContext::from(&hosts);
         let json = serde_json::to_string(&ctx).unwrap();

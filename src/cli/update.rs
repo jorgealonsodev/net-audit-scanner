@@ -11,8 +11,7 @@ pub struct UpdateArgs {
 }
 
 /// Canonical Wireshark manuf database URL.
-const WIRESHARK_MANUF_URL: &str =
-    "https://gitlab.com/wireshark/wireshark/-/raw/master/manuf";
+const WIRESHARK_MANUF_URL: &str = "https://gitlab.com/wireshark/wireshark/-/raw/master/manuf";
 
 /// Download the Wireshark manuf database and cache it atomically.
 ///
@@ -20,10 +19,7 @@ const WIRESHARK_MANUF_URL: &str =
 /// On success, prints the entry count and source URL to stdout.
 /// On failure, prints an error to stderr and exits non-zero.
 pub async fn handle_update(args: &UpdateArgs) -> Result<(), Error> {
-    let url = args
-        .source
-        .as_deref()
-        .unwrap_or(WIRESHARK_MANUF_URL);
+    let url = args.source.as_deref().unwrap_or(WIRESHARK_MANUF_URL);
 
     let response = reqwest::get(url)
         .await
@@ -56,14 +52,11 @@ pub async fn handle_update(args: &UpdateArgs) -> Result<(), Error> {
     let tmp_path = cache_path.with_extension("tmp");
 
     if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| {
-            Error::Update(format!("Failed to create cache directory: {}", e))
-        })?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| Error::Update(format!("Failed to create cache directory: {}", e)))?;
     }
 
-    std::fs::write(&tmp_path, &body).map_err(|e| {
-        Error::Update(format!("Failed to write temporary file: {}", e))
-    })?;
+    std::fs::write(&tmp_path, &body).map_err(|e| Error::Update(format!("Failed to write temporary file: {}", e)))?;
 
     std::fs::rename(&tmp_path, &cache_path).map_err(|e| {
         // Clean up tmp file on rename failure

@@ -69,20 +69,13 @@ impl NvdClient {
                             tokio::time::sleep(delay).await;
                             continue;
                         } else {
-                            tracing::warn!(
-                                "NVD rate limit ({}) exceeded max retries, skipping CVE lookup",
-                                status
-                            );
+                            tracing::warn!("NVD rate limit ({}) exceeded max retries, skipping CVE lookup", status);
                             return Ok(Vec::new());
                         }
                     }
 
                     if !status.is_success() {
-                        tracing::warn!(
-                            "NVD API returned {} for CPE {}, skipping CVE lookup",
-                            status,
-                            cpe
-                        );
+                        tracing::warn!("NVD API returned {} for CPE {}, skipping CVE lookup", status, cpe);
                         return Ok(Vec::new());
                     }
 
@@ -360,7 +353,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let matches = client.query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*").await.unwrap();
+        let matches = client
+            .query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*")
+            .await
+            .unwrap();
         assert!(matches.is_empty());
     }
 
@@ -397,7 +393,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let matches = client.query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*").await.unwrap();
+        let matches = client
+            .query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*")
+            .await
+            .unwrap();
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].cve_id, "CVE-2023-9999");
     }
@@ -414,7 +413,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let matches = client.query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*").await.unwrap();
+        let matches = client
+            .query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*")
+            .await
+            .unwrap();
         assert!(matches.is_empty());
     }
 
@@ -432,7 +434,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let matches = client.query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*").await.unwrap();
+        let matches = client
+            .query_cves("cpe:2.3:a:test:test:1.0:*:*:*:*:*:*:*")
+            .await
+            .unwrap();
         assert!(matches.is_empty());
     }
 }

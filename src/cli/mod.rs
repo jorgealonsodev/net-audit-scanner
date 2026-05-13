@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use crate::error::Error;
 use crate::scanner::{Scanner, detect, detect_local_network};
 use scan::{format_hosts_json, format_hosts_table};
-use update::{handle_update, UpdateArgs};
+use update::{UpdateArgs, handle_update};
 
 /// netascan — Network security audit CLI
 #[derive(Parser)]
@@ -97,19 +97,14 @@ pub async fn run() -> Result<(), Error> {
                     let _ = std::fs::create_dir_all(parent);
                 }
 
-                let api_key = std::env::var("NVD_API_KEY")
-                    .ok()
-                    .or_else(|| {
-                        crate::config::Config::load()
-                            .ok()
-                            .and_then(|cfg| {
-                                let key = cfg.cve.nvd_api_key;
-                                if key.is_empty() { None } else { Some(key) }
-                            })
-                    });
+                let api_key = std::env::var("NVD_API_KEY").ok().or_else(|| {
+                    crate::config::Config::load().ok().and_then(|cfg| {
+                        let key = cfg.cve.nvd_api_key;
+                        if key.is_empty() { None } else { Some(key) }
+                    })
+                });
 
-                match crate::cve::cache::CveCache::open(cache_path.to_str().unwrap_or("cve.db")).await
-                {
+                match crate::cve::cache::CveCache::open(cache_path.to_str().unwrap_or("cve.db")).await {
                     Ok(cache) => {
                         let client = crate::cve::client::NvdClient::new(api_key);
                         crate::cve::enrich_cve(&mut hosts, &cache, &client, false).await;

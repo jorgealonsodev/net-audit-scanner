@@ -131,10 +131,7 @@ fn update_help_shows_source_flag() {
     cmd.args(["update", "--help"]);
     let output = cmd.assert().success().get_output().stdout.clone();
     let stdout = String::from_utf8_lossy(&output);
-    assert!(
-        stdout.contains("--source"),
-        "update help should show --source flag"
-    );
+    assert!(stdout.contains("--source"), "update help should show --source flag");
 }
 
 #[test]
@@ -143,8 +140,5 @@ fn scan_help_shows_no_update_flag() {
     cmd.args(["scan", "--help"]);
     let output = cmd.assert().success().get_output().stdout.clone();
     let stdout = String::from_utf8_lossy(&output);
-    assert!(
-        stdout.contains("--no-update"),
-        "scan help should show --no-update flag"
-    );
+    assert!(stdout.contains("--no-update"), "scan help should show --no-update flag");
 }

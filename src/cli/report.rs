@@ -47,8 +47,7 @@ fn read_input(path: &Option<PathBuf>) -> Result<Vec<DiscoveredHost>, Error> {
         }
     };
 
-    serde_json::from_str(&data)
-        .map_err(|e| Error::Report(format!("Failed to parse scan JSON: {e}")))
+    serde_json::from_str(&data).map_err(|e| Error::Report(format!("Failed to parse scan JSON: {e}")))
 }
 
 /// Handles the report subcommand: reads input, generates report, writes output.

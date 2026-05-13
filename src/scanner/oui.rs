@@ -43,13 +43,10 @@ pub struct OuiDb {
 impl OuiDb {
     /// Load the embedded Wireshark manuf database.
     pub fn from_embedded() -> Self {
-        use include_dir::{include_dir, Dir};
+        use include_dir::{Dir, include_dir};
         static DATA_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/data/manuf");
 
-        let content = DATA_DIR
-            .get_file("manuf")
-            .and_then(|f| f.contents_utf8())
-            .unwrap_or("");
+        let content = DATA_DIR.get_file("manuf").and_then(|f| f.contents_utf8()).unwrap_or("");
 
         if content.is_empty() {
             tracing::warn!("Embedded manuf database is empty or missing");
@@ -339,6 +336,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }];
         enrich_oui(&db, &mut hosts);
         assert_eq!(hosts[0].vendor, Some("Cisco Systems, Inc.".into()));
@@ -355,6 +353,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }];
         enrich_oui(&db, &mut hosts);
         assert!(hosts[0].vendor.is_none());
@@ -400,6 +399,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                os_hint: None,
             },
             DiscoveredHost {
                 ip: "192.168.1.2".parse::<IpAddr>().unwrap(),
@@ -409,6 +409,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                os_hint: None,
             },
         ];
         enrich_oui(&db, &mut hosts);

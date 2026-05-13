@@ -203,6 +203,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms,
             vendor: vendor.map(String::from),
+            os_hint: None,
         }
     }
 
@@ -320,33 +321,32 @@ mod tests {
             mac: None,
             hostname: None,
             method: DiscoveryMethod::Tcp,
-            open_ports: vec![
-                OpenPort {
-                    port: 22,
-                    service: ServiceType::Ssh,
-                    banner: Some("SSH-2.0-OpenSSH_8.9".into()),
-                    protocol: Protocol::Tcp,
-                    is_insecure: false,
-                    cves: vec![
-                        CveMatch {
-                            cve_id: "CVE-2021-41617".into(),
-                            description: "sshd privilege escalation".into(),
-                            severity: Severity::High,
-                            score: Some(7.8),
-                            published: "2021-09-20".into(),
-                        },
-                        CveMatch {
-                            cve_id: "CVE-2023-9999".into(),
-                            description: "Another SSH bug".into(),
-                            severity: Severity::Medium,
-                            score: Some(5.0),
-                            published: "2023-01-01".into(),
-                        },
-                    ],
-                },
-            ],
+            open_ports: vec![OpenPort {
+                port: 22,
+                service: ServiceType::Ssh,
+                banner: Some("SSH-2.0-OpenSSH_8.9".into()),
+                protocol: Protocol::Tcp,
+                is_insecure: false,
+                cves: vec![
+                    CveMatch {
+                        cve_id: "CVE-2021-41617".into(),
+                        description: "sshd privilege escalation".into(),
+                        severity: Severity::High,
+                        score: Some(7.8),
+                        published: "2021-09-20".into(),
+                    },
+                    CveMatch {
+                        cve_id: "CVE-2023-9999".into(),
+                        description: "Another SSH bug".into(),
+                        severity: Severity::Medium,
+                        score: Some(5.0),
+                        published: "2023-01-01".into(),
+                    },
+                ],
+            }],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }];
 
         let output = format_hosts_table(&hosts);
@@ -388,11 +388,15 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            os_hint: None,
         }];
 
         let output = format_hosts_json(&hosts);
         assert!(output.contains("CVE-2021-41617"), "JSON should include CVE ID");
         assert!(output.contains("cves"), "JSON should include cves field");
-        assert!(output.contains("sshd privilege escalation"), "JSON should include CVE description");
+        assert!(
+            output.contains("sshd privilege escalation"),
+            "JSON should include CVE description"
+        );
     }
 }
