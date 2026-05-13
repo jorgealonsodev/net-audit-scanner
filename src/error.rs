@@ -32,6 +32,9 @@ pub enum Error {
 
     #[error("Update error: {0}")]
     Update(String),
+
+    #[error("Persist error: {0}")]
+    Persist(String),
 }
 
 #[cfg(test)]
@@ -89,5 +92,19 @@ mod tests {
         let debug = format!("{:?}", err);
         assert!(debug.contains("Template"));
         assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn persist_error_display() {
+        let err = Error::Persist("failed to write scan file".into());
+        assert_eq!(format!("{}", err), "Persist error: failed to write scan file");
+    }
+
+    #[test]
+    fn persist_error_is_debug() {
+        let err = Error::Persist("disk full".into());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("Persist"));
+        assert!(debug.contains("disk full"));
     }
 }

@@ -2,6 +2,7 @@ use clap::Args;
 use std::io::Read;
 use std::path::PathBuf;
 
+use crate::cli::persist;
 use crate::error::Error;
 use crate::report::ReportEngine;
 use crate::scanner::models::DiscoveredHost;
@@ -53,10 +54,15 @@ fn read_input(path: &Option<PathBuf>) -> Result<Vec<DiscoveredHost>, Error> {
 /// Handles the report subcommand: reads input, generates report, writes output.
 pub async fn handle_report(args: &ReportArgs) -> Result<(), Error> {
     if args.last {
-        eprintln!("not yet implemented");
-        return Ok(());
+        let hosts = persist::load_last_scan()?;
+        return render_report(&hosts, args);
     }
 
+    let hosts = read_input(&args.input)?;
+    render_report(&hosts, args)
+}
+
+fn render_report(hosts: &[DiscoveredHost], args: &ReportArgs) -> Result<(), Error> {
     // Validate format
     if args.format != "html" && args.format != "json" {
         return Err(Error::Report(format!(
@@ -65,11 +71,10 @@ pub async fn handle_report(args: &ReportArgs) -> Result<(), Error> {
         )));
     }
 
-    let hosts = read_input(&args.input)?;
     let output_path = args.output.as_deref();
 
     let engine = ReportEngine::new().map_err(|e| Error::Template(e.to_string()))?;
-    let ctx = crate::report::ReportContext::from(&hosts);
+    let ctx = crate::report::ReportContext::from(&hosts.to_vec());
 
     match args.format.as_str() {
         "html" => {

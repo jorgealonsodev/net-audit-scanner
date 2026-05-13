@@ -118,6 +118,38 @@ pub struct Capabilities {
     pub can_arp_table: bool,
 }
 
+/// CLI arguments captured at scan time, persisted with scan results.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanCliArgs {
+    /// Port range specification (e.g., "top-1000", "full", "80-443").
+    pub port_range: String,
+    /// Whether a full port scan was requested.
+    pub full: bool,
+    /// Whether CVE lookup was skipped.
+    pub no_cve: bool,
+}
+
+/// A complete scan record persisted to disk after CVE enrichment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanRecord {
+    /// Unique identifier for this scan (UUID v4).
+    pub id: String,
+    /// ISO 8601 UTC timestamp when scanning started.
+    pub started_at: String,
+    /// ISO 8601 UTC timestamp when scanning completed.
+    pub completed_at: String,
+    /// CIDR network string from CLI args.
+    pub network: String,
+    /// CLI arguments used for this scan.
+    pub cli_args: ScanCliArgs,
+    /// Number of hosts discovered.
+    pub host_count: usize,
+    /// Total CVEs across all hosts.
+    pub total_cves: usize,
+    /// Discovered hosts with enriched data.
+    pub hosts: Vec<DiscoveredHost>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -418,5 +450,152 @@ mod tests {
         let json = r#"{"ip":"10.0.0.1","mac":null,"hostname":null,"method":"tcp","open_ports":[],"rtt_ms":null}"#;
         let host: DiscoveredHost = serde_json::from_str(json).unwrap();
         assert!(host.os_hint.is_none());
+    }
+
+    // ─── ScanCliArgs and ScanRecord tests (scan-persistence) ───
+
+    #[test]
+    fn scan_cli_args_serializes() {
+        let args = ScanCliArgs {
+            port_range: "top-1000".into(),
+            full: false,
+            no_cve: true,
+        };
+        let json = serde_json::to_string(&args).unwrap();
+        assert!(json.contains("top-1000"));
+        assert!(json.contains("false"));
+        assert!(json.contains("true"));
+    }
+
+    #[test]
+    fn scan_cli_args_deserializes() {
+        let json = r#"{"port_range":"full","full":true,"no_cve":false}"#;
+        let args: ScanCliArgs = serde_json::from_str(json).unwrap();
+        assert_eq!(args.port_range, "full");
+        assert!(args.full);
+        assert!(!args.no_cve);
+    }
+
+    #[test]
+    fn scan_record_serializes() {
+        let record = ScanRecord {
+            id: "test-uuid-1234".into(),
+            started_at: "2026-05-13T10:30:00Z".into(),
+            completed_at: "2026-05-13T10:35:00Z".into(),
+            network: "192.168.1.0/24".into(),
+            cli_args: ScanCliArgs {
+                port_range: "top-1000".into(),
+                full: false,
+                no_cve: true,
+            },
+            host_count: 1,
+            total_cves: 0,
+            hosts: vec![DiscoveredHost {
+                ip: "192.168.1.1".parse().unwrap(),
+                mac: None,
+                hostname: None,
+                method: DiscoveryMethod::Icmp,
+                open_ports: vec![],
+                rtt_ms: None,
+                vendor: None,
+                os_hint: None,
+            }],
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        assert!(json.contains("test-uuid-1234"));
+        assert!(json.contains("192.168.1.0/24"));
+        assert!(json.contains("top-1000"));
+        assert!(json.contains("host_count"));
+        assert!(json.contains("total_cves"));
+    }
+
+    #[test]
+    fn scan_record_deserializes() {
+        let json = r#"{
+            "id": "test-uuid-5678",
+            "started_at": "2026-05-13T10:30:00Z",
+            "completed_at": "2026-05-13T10:35:00Z",
+            "network": "10.0.0.0/8",
+            "cli_args": {"port_range": "full", "full": true, "no_cve": false},
+            "host_count": 0,
+            "total_cves": 0,
+            "hosts": []
+        }"#;
+        let record: ScanRecord = serde_json::from_str(json).unwrap();
+        assert_eq!(record.id, "test-uuid-5678");
+        assert_eq!(record.network, "10.0.0.0/8");
+        assert!(record.cli_args.full);
+        assert_eq!(record.host_count, 0);
+        assert!(record.hosts.is_empty());
+    }
+
+    #[test]
+    fn scan_record_roundtrip() {
+        let original = ScanRecord {
+            id: "roundtrip-uuid".into(),
+            started_at: "2026-05-13T12:00:00Z".into(),
+            completed_at: "2026-05-13T12:05:00Z".into(),
+            network: "172.16.0.0/16".into(),
+            cli_args: ScanCliArgs {
+                port_range: "80-443".into(),
+                full: false,
+                no_cve: false,
+            },
+            host_count: 2,
+            total_cves: 3,
+            hosts: vec![
+                DiscoveredHost {
+                    ip: "172.16.0.1".parse().unwrap(),
+                    mac: Some("aa:bb:cc:dd:ee:01".parse().unwrap()),
+                    hostname: Some("gw.local".into()),
+                    method: DiscoveryMethod::Icmp,
+                    open_ports: vec![],
+                    rtt_ms: Some(2),
+                    vendor: None,
+                    os_hint: None,
+                },
+                DiscoveredHost {
+                    ip: "172.16.0.2".parse().unwrap(),
+                    mac: None,
+                    hostname: None,
+                    method: DiscoveryMethod::Tcp,
+                    open_ports: vec![],
+                    rtt_ms: None,
+                    vendor: Some("Unknown".into()),
+                    os_hint: Some("Linux".into()),
+                },
+            ],
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: ScanRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(original.id, restored.id);
+        assert_eq!(original.network, restored.network);
+        assert_eq!(original.host_count, restored.host_count);
+        assert_eq!(original.total_cves, restored.total_cves);
+        assert_eq!(original.hosts.len(), restored.hosts.len());
+        assert_eq!(original.hosts[0].ip, restored.hosts[0].ip);
+        assert_eq!(original.hosts[1].os_hint, restored.hosts[1].os_hint);
+    }
+
+    #[test]
+    fn scan_record_empty_hosts_serializes() {
+        let record = ScanRecord {
+            id: "empty-scan".into(),
+            started_at: "2026-05-13T10:00:00Z".into(),
+            completed_at: "2026-05-13T10:00:01Z".into(),
+            network: "192.168.99.0/24".into(),
+            cli_args: ScanCliArgs {
+                port_range: "top-1000".into(),
+                full: false,
+                no_cve: true,
+            },
+            host_count: 0,
+            total_cves: 0,
+            hosts: vec![],
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        let restored: ScanRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.host_count, 0);
+        assert!(restored.hosts.is_empty());
     }
 }

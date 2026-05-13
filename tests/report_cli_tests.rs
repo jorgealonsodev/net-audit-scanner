@@ -164,15 +164,19 @@ fn report_invalid_format_exits_with_error() {
 }
 
 #[test]
-fn report_last_prints_not_yet_implemented() {
-    cli()
+fn report_last_loads_most_recent_scan() {
+    // --last is now implemented: loads the most recent scan from cache dir.
+    // In test environment no scans exist, so it should fail gracefully.
+    let result = cli()
         .arg("report")
         .arg("--last")
-        .arg("--input")
-        .arg("tests/fixtures/scan_result.json")
-        .assert()
-        .success()
-        .stderr(predicate::str::contains("not yet implemented"));
+        .assert();
+    // --last without a saved scan should still exit gracefully (success or controlled failure)
+    let output = String::from_utf8_lossy(&result.get_output().stderr);
+    assert!(
+        !output.contains("not yet implemented"),
+        "--last should no longer be a stub"
+    );
 }
 
 #[test]

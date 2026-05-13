@@ -1,3 +1,4 @@
+mod persist;
 mod report;
 mod scan;
 pub mod serve;
@@ -75,6 +76,9 @@ pub async fn run() -> Result<(), Error> {
                 tracing::warn!("ICMP sweep unavailable (requires root or CAP_NET_RAW). Using TCP + ARP only.");
             }
 
+            // Capture start time for persistence
+            let started_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+
             // Run discovery
             let scanner = Scanner::new(config);
             let hosts = scanner.discover_network(&network, &caps).await?;
@@ -113,6 +117,11 @@ pub async fn run() -> Result<(), Error> {
                         tracing::warn!("Failed to open CVE cache at {:?}: {}", cache_path, e);
                     }
                 }
+            }
+
+            // Persist scan results (non-fatal)
+            if let Err(e) = persist::save_scan(&hosts, &args, &args.network, &started_at) {
+                tracing::warn!("Failed to persist scan results: {}", e);
             }
 
             // Output results
