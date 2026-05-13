@@ -37,6 +37,7 @@ assert_cmd = "2"
 predicates = "3"
 criterion = "0.5"
 tokio-test = "0.4"
+wiremock = "0.6.5"
 
 [[bench]]
 name = "benchmark"
