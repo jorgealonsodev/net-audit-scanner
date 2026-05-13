@@ -48,7 +48,7 @@ pub struct ScanArgs {
 
 /// Format discovered hosts as an aligned plain-text table.
 ///
-/// Columns: IP, MAC, Hostname, Method, Response Time
+/// Columns: IP, MAC, Vendor, Hostname, Method, Response Time, CVEs
 pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
     if hosts.is_empty() {
         return "No hosts discovered.".to_string();
@@ -61,6 +61,7 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
     let mut hostname_width = 8; // "Hostname"
     let mut method_width = 6; // "Method"
     let mut rtt_width = 11; // "Response Time"
+    let mut cve_width = 4; // "CVEs"
 
     for host in hosts {
         let ip_len = host.ip.to_string().len();
@@ -69,6 +70,12 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
         let hostname_len = host.hostname.as_deref().unwrap_or("-").len();
         let method_len = format!("{:?}", host.method).len();
         let rtt_len = host.rtt_ms.map(|r| format!("{r} ms").len()).unwrap_or(2); // "-"
+        let cve_count: usize = host.open_ports.iter().map(|p| p.cves.len()).sum();
+        let cve_len = if cve_count > 0 {
+            format!("{cve_count} CVEs").len()
+        } else {
+            1 // "-"
+        };
 
         ip_width = ip_width.max(ip_len);
         mac_width = mac_width.max(mac_len);
@@ -76,30 +83,34 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
         hostname_width = hostname_width.max(hostname_len);
         method_width = method_width.max(method_len);
         rtt_width = rtt_width.max(rtt_len);
+        cve_width = cve_width.max(cve_len);
     }
 
     let mut lines = Vec::new();
 
     // Header
     lines.push(format!(
-        "{:<ip_width$}  {:<mac_width$}  {:<vendor_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}",
+        "{:<ip_width$}  {:<mac_width$}  {:<vendor_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}  {:<cve_width$}",
         "IP",
         "MAC",
         "Vendor",
         "Hostname",
         "Method",
         "Response Time",
+        "CVEs",
         ip_width = ip_width,
         mac_width = mac_width,
         vendor_width = vendor_width,
         hostname_width = hostname_width,
         method_width = method_width,
         rtt_width = rtt_width,
+        cve_width = cve_width,
     ));
 
     // Separator
     lines.push(format!(
-        "{:-<ip_width$}  {:-<mac_width$}  {:-<vendor_width$}  {:-<hostname_width$}  {:-<method_width$}  {:-<rtt_width$}",
+        "{:-<ip_width$}  {:-<mac_width$}  {:-<vendor_width$}  {:-<hostname_width$}  {:-<method_width$}  {:-<rtt_width$}  {:-<cve_width$}",
+        "",
         "",
         "",
         "",
@@ -112,6 +123,7 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
         hostname_width = hostname_width,
         method_width = method_width,
         rtt_width = rtt_width,
+        cve_width = cve_width,
     ));
 
     // Rows
@@ -121,21 +133,29 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
         let hostname = host.hostname.as_deref().unwrap_or("-");
         let method = format!("{:?}", host.method);
         let rtt = host.rtt_ms.map(|r| format!("{r} ms")).unwrap_or("-".to_string());
+        let cve_count: usize = host.open_ports.iter().map(|p| p.cves.len()).sum();
+        let cves = if cve_count > 0 {
+            format!("{cve_count} CVEs")
+        } else {
+            "-".to_string()
+        };
 
         lines.push(format!(
-            "{:<ip_width$}  {:<mac_width$}  {:<vendor_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}",
+            "{:<ip_width$}  {:<mac_width$}  {:<vendor_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}  {:<cve_width$}",
             host.ip,
             mac,
             vendor,
             hostname,
             method,
             rtt,
+            cves,
             ip_width = ip_width,
             mac_width = mac_width,
             vendor_width = vendor_width,
             hostname_width = hostname_width,
             method_width = method_width,
             rtt_width = rtt_width,
+            cve_width = cve_width,
         ));
     }
 
@@ -277,5 +297,98 @@ mod tests {
         let output = format_hosts_table(&hosts);
         assert!(output.contains("Vendor"), "Header should contain 'Vendor'");
         assert!(output.contains("192.168.1.2"), "Row should contain IP");
+    }
+
+    #[test]
+    fn format_hosts_table_includes_cve_column() {
+        let hosts = vec![make_host("192.168.1.1", None, None, DiscoveryMethod::Icmp, Some(5))];
+        let output = format_hosts_table(&hosts);
+        assert!(output.contains("CVEs"), "Header should contain 'CVEs'");
+    }
+
+    #[test]
+    fn format_hosts_table_shows_cve_count() {
+        use crate::cve::models::{CveMatch, Severity};
+        use crate::scanner::models::{OpenPort, Protocol, ServiceType};
+
+        let hosts = vec![DiscoveredHost {
+            ip: "192.168.1.1".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Tcp,
+            open_ports: vec![
+                OpenPort {
+                    port: 22,
+                    service: ServiceType::Ssh,
+                    banner: Some("SSH-2.0-OpenSSH_8.9".into()),
+                    protocol: Protocol::Tcp,
+                    is_insecure: false,
+                    cves: vec![
+                        CveMatch {
+                            cve_id: "CVE-2021-41617".into(),
+                            description: "sshd privilege escalation".into(),
+                            severity: Severity::High,
+                            score: Some(7.8),
+                            published: "2021-09-20".into(),
+                        },
+                        CveMatch {
+                            cve_id: "CVE-2023-9999".into(),
+                            description: "Another SSH bug".into(),
+                            severity: Severity::Medium,
+                            score: Some(5.0),
+                            published: "2023-01-01".into(),
+                        },
+                    ],
+                },
+            ],
+            rtt_ms: None,
+            vendor: None,
+        }];
+
+        let output = format_hosts_table(&hosts);
+        assert!(output.contains("2 CVEs"), "Row should show CVE count");
+    }
+
+    #[test]
+    fn format_hosts_table_shows_dash_when_no_cves() {
+        let hosts = vec![make_host("192.168.1.1", None, None, DiscoveryMethod::Tcp, None)];
+        let output = format_hosts_table(&hosts);
+        assert!(output.contains("CVEs"), "Header should contain 'CVEs'");
+        // With no open ports (or empty cves), should show "-" in the CVE column
+        assert!(output.contains("192.168.1.1"), "Row should contain IP");
+    }
+
+    #[test]
+    fn format_hosts_json_includes_cves() {
+        use crate::cve::models::{CveMatch, Severity};
+        use crate::scanner::models::{OpenPort, Protocol, ServiceType};
+
+        let hosts = vec![DiscoveredHost {
+            ip: "192.168.1.1".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Tcp,
+            open_ports: vec![OpenPort {
+                port: 22,
+                service: ServiceType::Ssh,
+                banner: Some("SSH-2.0-OpenSSH_8.9".into()),
+                protocol: Protocol::Tcp,
+                is_insecure: false,
+                cves: vec![CveMatch {
+                    cve_id: "CVE-2021-41617".into(),
+                    description: "sshd privilege escalation".into(),
+                    severity: Severity::High,
+                    score: Some(7.8),
+                    published: "2021-09-20".into(),
+                }],
+            }],
+            rtt_ms: None,
+            vendor: None,
+        }];
+
+        let output = format_hosts_json(&hosts);
+        assert!(output.contains("CVE-2021-41617"), "JSON should include CVE ID");
+        assert!(output.contains("cves"), "JSON should include cves field");
+        assert!(output.contains("sshd privilege escalation"), "JSON should include CVE description");
     }
 }
