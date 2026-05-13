@@ -25,10 +25,6 @@ jobs:
             os: macos-latest
             archive: tar.gz
 
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            archive: zip
-
     steps:
       - uses: actions/checkout@v4
 
@@ -47,40 +43,29 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
 
-      - name: Install cross-compilation tools (Linux)
+      - name: Install system dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y libpcap-dev
+
+      - name: Install system dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install libpcap
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package (Unix)
-        if: matrix.archive == 'tar.gz'
+      - name: Package
         shell: bash
         run: |
           VERSION=${GITHUB_REF_NAME}
           ASSET="${{ env.BINARY_NAME }}-${VERSION}-${{ matrix.target }}"
           mkdir -p dist/${ASSET}
           cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} dist/${ASSET}/
-          cp README.md LICENSE dist/${ASSET}/ 2>/dev/null || cp README.md dist/${ASSET}/
+          cp README.md dist/${ASSET}/ 2>/dev/null || true
           [ -d docs ] && cp -r docs dist/${ASSET}/
           tar -czf dist/${ASSET}.tar.gz -C dist ${ASSET}
           echo "ASSET_PATH=dist/${ASSET}.tar.gz" >> $GITHUB_ENV
           echo "ASSET_NAME=${ASSET}.tar.gz" >> $GITHUB_ENV
-
-      - name: Package (Windows)
-        if: matrix.archive == 'zip'
-        shell: pwsh
-        run: |
-          $VERSION = $env:GITHUB_REF_NAME
-          $ASSET = "${{ env.BINARY_NAME }}-${VERSION}-${{ matrix.target }}"
-          New-Item -ItemType Directory -Path "dist/${ASSET}" -Force
-          Copy-Item "target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe" "dist/${ASSET}/"
-          Copy-Item "README.md" "dist/${ASSET}/" -ErrorAction SilentlyContinue
-          if (Test-Path "docs") { Copy-Item "docs" "dist/${ASSET}/" -Recurse }
-          Compress-Archive -Path "dist/${ASSET}" -DestinationPath "dist/${ASSET}.zip"
-          echo "ASSET_PATH=dist/${ASSET}.zip" >> $env:GITHUB_ENV
-          echo "ASSET_NAME=${ASSET}.zip" >> $env:GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -175,6 +160,5 @@ jobs:
           prerelease: false
           files: |
             dist/*.tar.gz
-            dist/*.zip
             dist/*.deb
             dist/SHA256SUMS.txt

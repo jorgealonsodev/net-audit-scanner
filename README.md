@@ -28,10 +28,6 @@ tar -xzf netascan-v0.1.0-aarch64-apple-darwin.tar.gz
 sudo mv netascan /usr/local/bin/
 ```
 
-**Windows (zip)**
-
-Extract `netascan-v0.1.0-x86_64-pc-windows-msvc.zip` and add the folder to your `PATH`.
-
 ### Debian / Ubuntu (.deb)
 
 ```bash
