@@ -119,6 +119,14 @@ pub async fn run() -> Result<(), Error> {
                 }
             }
 
+            // Run default credential checks (non-fatal)
+            let creds_config = crate::config::Config::load()
+                .map(|cfg| cfg.credentials_check)
+                .unwrap_or_default();
+            if let Err(e) = crate::security::check_default_credentials(&mut hosts, &creds_config).await {
+                tracing::warn!("Default credential check failed: {}", e);
+            }
+
             // Persist scan results (non-fatal)
             if let Err(e) = persist::save_scan(&hosts, &args, &args.network, &started_at) {
                 tracing::warn!("Failed to persist scan results: {}", e);

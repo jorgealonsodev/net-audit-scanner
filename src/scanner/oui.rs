@@ -444,12 +444,12 @@ mod tests {
 
     #[test]
     fn from_reader_io_error_propagates() {
-        use std::io::{Cursor, Error, ErrorKind};
+        use std::io;
         // Create a reader that always fails
         struct FailingReader;
         impl std::io::Read for FailingReader {
             fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
-                Err(Error::new(ErrorKind::Other, "read failed"))
+                Err(io::Error::other("read failed"))
             }
         }
         let result = OuiDb::from_reader(FailingReader);
@@ -533,7 +533,7 @@ mod tests {
     fn get_oui_db_falls_back_to_embedded_on_missing_cache() {
         // Save real cache path, test with a nonexistent temp path
         let dir = tempfile::tempdir().unwrap();
-        let fake_path = dir.path().join("nonexistent");
+        let _fake_path = dir.path().join("nonexistent");
 
         // We can't easily mock cache_path(), so test get_oui_db() directly
         // by temporarily ensuring no cache exists. Since we can't control

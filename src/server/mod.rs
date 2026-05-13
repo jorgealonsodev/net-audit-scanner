@@ -97,7 +97,7 @@ async fn report(mut multipart: Multipart) -> Result<Html<String>, StatusCode> {
 
 /// Convert an error to an appropriate HTTP status code.
 /// Extracted for reuse by future handlers that need to map `Error` to HTTP responses.
-#[expect(dead_code)]
+#[allow(dead_code)]
 fn into_status_code(err: &Error) -> StatusCode {
     match err {
         Error::Parse(_) | Error::Report(_) | Error::Template(_) => StatusCode::BAD_REQUEST,
