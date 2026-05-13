@@ -1,5 +1,6 @@
 //! Data models for network discovery: hosts, methods, and capability detection.
 
+use crate::cve::models::CveMatch;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
@@ -40,6 +41,9 @@ pub struct OpenPort {
     pub protocol: Protocol,
     /// Whether this service is considered insecure.
     pub is_insecure: bool,
+    /// CVEs matched to this service, if any.
+    #[serde(default)]
+    pub cves: Vec<CveMatch>,
 }
 
 /// A host discovered during network scanning.
@@ -126,6 +130,7 @@ mod tests {
                     banner: None,
                     protocol: Protocol::Tcp,
                     is_insecure: false,
+                    cves: vec![],
                 },
                 OpenPort {
                     port: 80,
@@ -133,6 +138,7 @@ mod tests {
                     banner: None,
                     protocol: Protocol::Tcp,
                     is_insecure: true,
+                    cves: vec![],
                 },
             ],
             rtt_ms: Some(5),
@@ -243,6 +249,7 @@ mod tests {
                 banner: None,
                 protocol: Protocol::Tcp,
                 is_insecure: true,
+                cves: vec![],
             }],
             rtt_ms: Some(3),
             vendor: None,
@@ -290,6 +297,35 @@ mod tests {
     }
 
     #[test]
+    fn open_port_with_cves_serializes() {
+        use crate::cve::models::{CveMatch, Severity};
+        let port = OpenPort {
+            port: 22,
+            service: ServiceType::Ssh,
+            banner: Some("SSH-2.0-OpenSSH_8.9".into()),
+            protocol: Protocol::Tcp,
+            is_insecure: false,
+            cves: vec![CveMatch {
+                cve_id: "CVE-2021-1234".into(),
+                description: "Test".into(),
+                severity: Severity::High,
+                score: Some(7.5),
+                published: "2021-01-01".into(),
+            }],
+        };
+        let json = serde_json::to_string(&port).unwrap();
+        assert!(json.contains("CVE-2021-1234"));
+        assert!(json.contains("cves"));
+    }
+
+    #[test]
+    fn open_port_deserializes_with_empty_cves() {
+        let json = r#"{"port": 80, "service": "http", "banner": null, "protocol": "tcp", "is_insecure": true, "cves": []}"#;
+        let port: OpenPort = serde_json::from_str(json).unwrap();
+        assert!(port.cves.is_empty());
+    }
+
+    #[test]
     fn open_port_serializes() {
         let port = OpenPort {
             port: 22,
@@ -297,6 +333,7 @@ mod tests {
             banner: Some("SSH-2.0-OpenSSH_8.9".into()),
             protocol: Protocol::Tcp,
             is_insecure: false,
+            cves: vec![],
         };
         let json = serde_json::to_string(&port).unwrap();
         assert!(json.contains("22"));

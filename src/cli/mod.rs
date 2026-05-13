@@ -5,6 +5,7 @@ mod update;
 
 use clap::{Parser, Subcommand};
 use ipnetwork::IpNetwork;
+use std::path::PathBuf;
 
 use crate::error::Error;
 use crate::scanner::{Scanner, detect, detect_local_network};
@@ -83,6 +84,36 @@ pub async fn run() -> Result<(), Error> {
             // Enrich with OUI/vendor data
             crate::scanner::enrich_oui(&crate::scanner::OUI_DB, &mut hosts);
 
+            // Enrich with CVE data (unless skipped)
+            if !args.no_cve {
+                let cache_path = cache_dir().join("netascan/cve.db");
+                if let Some(parent) = cache_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+
+                let api_key = std::env::var("NVD_API_KEY")
+                    .ok()
+                    .or_else(|| {
+                        crate::config::Config::load()
+                            .ok()
+                            .and_then(|cfg| {
+                                let key = cfg.cve.nvd_api_key;
+                                if key.is_empty() { None } else { Some(key) }
+                            })
+                    });
+
+                match crate::cve::cache::CveCache::open(cache_path.to_str().unwrap_or("cve.db")).await
+                {
+                    Ok(cache) => {
+                        let client = crate::cve::client::NvdClient::new(api_key);
+                        crate::cve::enrich_cve(&mut hosts, &cache, &client, false).await;
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to open CVE cache at {:?}: {}", cache_path, e);
+                    }
+                }
+            }
+
             // Output results
             if args.json {
                 println!("{}", format_hosts_json(&hosts));
@@ -102,6 +133,13 @@ pub async fn run() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+/// Resolve the cache directory path.
+///
+/// Uses `dirs::cache_dir()` with a fallback to the current working directory.
+fn cache_dir() -> PathBuf {
+    dirs::cache_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
 /// Resolve the network argument to an IpNetwork.
