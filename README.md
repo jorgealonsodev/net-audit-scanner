@@ -1,5 +1,7 @@
 # netascan
 
+![netascan](net-audit-scan.png)
+
 Network security audit CLI. Discovers devices on your LAN, fingerprints services, checks for known CVEs, tests default credentials, and generates HTML/JSON reports — all from a single command.
 
 **[Documentation](https://jorgealonsodev.github.io/net-audit-scanner)**
