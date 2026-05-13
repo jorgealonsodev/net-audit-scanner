@@ -223,4 +223,85 @@ mod tests {
         assert_eq!(decoded.hosts[0].cves.len(), 1);
         assert_eq!(decoded.hosts[0].cves[0].cve_id, "CVE-2021-ROUNDTRIP");
     }
+
+    #[test]
+    fn render_html_template_shows_cve_details() {
+        let engine = ReportEngine::new().unwrap();
+        let cve1 = make_cve("CVE-2021-41617");
+        let cve2 = CveMatch {
+            cve_id: "CVE-2020-9999".into(),
+            description: "Another vulnerability".into(),
+            severity: Severity::Critical,
+            score: Some(9.8),
+            published: "2020-01-01".into(),
+        };
+        let ssh_port = make_port(22, ServiceType::Ssh, false, vec![cve1]);
+        let http_port = make_port(80, ServiceType::Http, true, vec![cve2]);
+        let hosts = vec![make_host("10.0.0.50", vec![ssh_port, http_port])];
+        let ctx = ReportContext::from(&hosts);
+        let html = engine.render_html(&ctx).unwrap();
+
+        // Summary section
+        assert!(html.contains("Hosts Scanned"));
+        assert!(html.contains("CVEs Found"));
+        assert!(html.contains("Insecure Ports"));
+        assert!(html.contains(">2<")); // total_cves = 2
+
+        // Host table
+        assert!(html.contains("10.0.0.50"));
+        assert!(html.contains("Test Vendor"));
+        assert!(html.contains("test-host")); // hostname
+
+        // CVE details section
+        assert!(html.contains("CVE-2021-41617"));
+        assert!(html.contains("CVE-2020-9999"));
+        assert!(html.contains("HIGH"));
+        assert!(html.contains("CRITICAL"));
+        assert!(html.contains("7.5"));
+        assert!(html.contains("9.8"));
+
+        // Port details
+        assert!(html.contains("22"));
+        assert!(html.contains("ssh"));
+        assert!(html.contains("80"));
+        assert!(html.contains("http"));
+    }
+
+    #[test]
+    fn render_html_shows_no_cves_message() {
+        let engine = ReportEngine::new().unwrap();
+        let hosts = vec![make_host("10.0.0.99", vec![])];
+        let ctx = ReportContext::from(&hosts);
+        let html = engine.render_html(&ctx).unwrap();
+
+        assert!(html.contains("No CVEs found for this host"));
+    }
+
+    #[test]
+    fn render_html_shows_insecure_port_warning() {
+        let engine = ReportEngine::new().unwrap();
+        let port = make_port(23, ServiceType::Telnet, true, vec![]);
+        let hosts = vec![make_host("10.0.0.77", vec![port])];
+        let ctx = ReportContext::from(&hosts);
+        let html = engine.render_html(&ctx).unwrap();
+
+        assert!(html.contains("Yes")); // insecure port indicator
+        assert!(html.contains("insecure")); // CSS class
+    }
+
+    #[test]
+    fn render_html_context_has_summary_totals() {
+        let engine = ReportEngine::new().unwrap();
+        let cve = make_cve("CVE-2021-TEST");
+        let port1 = make_port(22, ServiceType::Ssh, false, vec![cve]);
+        let port2 = make_port(23, ServiceType::Telnet, true, vec![]);
+        let hosts = vec![make_host("10.0.0.1", vec![port1, port2])];
+        let ctx = ReportContext::from(&hosts);
+        let html = engine.render_html(&ctx).unwrap();
+
+        // Verify summary cards render the correct totals
+        assert!(html.contains(">1<")); // host_count
+        assert!(html.contains(">1<")); // total_cves (1 CVE)
+        assert!(html.contains(">1<")); // total_insecure_ports (1 insecure port)
+    }
 }

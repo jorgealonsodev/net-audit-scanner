@@ -1,23 +1,50 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>netascan — Security Audit Report</title>
     <style>
-        body { font-family: system-ui, sans-serif; margin: 2rem; }
-        h1 { color: #1a1a2e; }
-        table { border-collapse: collapse; width: 100%; }
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem; color: #1a1a2e; }
+        h1 { color: #16213e; border-bottom: 2px solid #0f3460; padding-bottom: 0.5rem; }
+        h2 { color: #0f3460; margin-top: 2rem; }
+        h3 { color: #1a1a2e; }
+        table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
         th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
         th { background: #16213e; color: white; }
+        tr:nth-child(even) { background: #f8f9fa; }
+        .summary { display: flex; gap: 2rem; flex-wrap: wrap; margin: 1rem 0; }
+        .summary-card { background: #f0f4f8; border-radius: 8px; padding: 1rem; min-width: 150px; }
+        .summary-card .value { font-size: 2rem; font-weight: bold; color: #0f3460; }
+        .summary-card .label { color: #666; font-size: 0.875rem; }
+        .severity-critical { color: #dc3545; font-weight: bold; }
+        .severity-high { color: #fd7e14; font-weight: bold; }
+        .severity-medium { color: #ffc107; }
+        .severity-low { color: #28a745; }
+        .insecure { background: #fff3cd !important; }
+        .meta { color: #666; font-size: 0.875rem; margin: 0.5rem 0; }
+        .no-cves { color: #28a745; font-style: italic; }
     </style>
 </head>
 <body>
     <h1>netascan — Security Audit Report</h1>
-    <p>Generated: {{ generated_at }}</p>
-    <p>Network: {{ network }}</p>
+    <p class="meta">Generated: {{ generated_at }} | Scanner: {{ version }} | Network: {{ network }}</p>
 
     <h2>Summary</h2>
-    <p>Total hosts: {{ hosts | length }}</p>
+    <div class="summary">
+        <div class="summary-card">
+            <div class="value">{{ host_count }}</div>
+            <div class="label">Hosts Scanned</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">{{ total_cves }}</div>
+            <div class="label">CVEs Found</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">{{ total_insecure_ports }}</div>
+            <div class="label">Insecure Ports</div>
+        </div>
+    </div>
 
     <h2>Devices</h2>
     <table>
@@ -25,8 +52,10 @@
             <tr>
                 <th>IP</th>
                 <th>MAC</th>
+                <th>Hostname</th>
                 <th>Vendor</th>
                 <th>Open Ports</th>
+                <th>Insecure</th>
                 <th>CVEs</th>
             </tr>
         </thead>
@@ -34,13 +63,67 @@
             {% for host in hosts %}
             <tr>
                 <td>{{ host.ip }}</td>
-                <td>{{ host.mac }}</td>
-                <td>{{ host.vendor }}</td>
+                <td>{{ host.mac | default(value="-") }}</td>
+                <td>{{ host.hostname | default(value="-") }}</td>
+                <td>{{ host.vendor | default(value="-") }}</td>
                 <td>{{ host.open_ports | length }}</td>
-                <td>{{ host.cves | length }}</td>
+                <td>{{ host.insecure_ports }}</td>
+                <td>{{ host.total_cves }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    {% for host in hosts %}
+    <h2>Host: {{ host.ip }}{% if host.hostname %} ({{ host.hostname }}){% endif %}</h2>
+
+    <h3>Open Ports</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Port</th>
+                <th>Service</th>
+                <th>Insecure</th>
+                <th>CVE Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for port in host.open_ports %}
+            <tr{% if port.is_insecure %} class="insecure"{% endif %}>
+                <td>{{ port.port }}</td>
+                <td>{{ port.service }}</td>
+                <td>{% if port.is_insecure %}⚠️ Yes{% else %}No{% endif %}</td>
+                <td>{{ port.cve_count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>CVE Details{% if host.cves | length == 0 %} — None Found{% endif %}</h3>
+    {% if host.cves | length > 0 %}
+    <table>
+        <thead>
+            <tr>
+                <th>CVE ID</th>
+                <th>Severity</th>
+                <th>Score</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cve in host.cves %}
+            <tr>
+                <td>{{ cve.cve_id }}</td>
+                <td class="severity-{{ cve.severity }}">{{ cve.severity | upper }}</td>
+                <td>{{ cve.score | default(value="N/A") }}</td>
+                <td>{{ cve.description }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="no-cves">No CVEs found for this host.</p>
+    {% endif %}
+    {% endfor %}
 </body>
 </html>

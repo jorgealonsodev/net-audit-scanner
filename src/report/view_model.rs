@@ -45,6 +45,8 @@ pub struct ReportContext {
     pub version: String,
     pub network: String,
     pub host_count: usize,
+    pub total_cves: usize,
+    pub total_insecure_ports: usize,
     pub hosts: Vec<ReportHost>,
 }
 
@@ -106,11 +108,15 @@ impl From<&Vec<DiscoveredHost>> for ReportContext {
     fn from(hosts: &Vec<DiscoveredHost>) -> Self {
         let hosts: Vec<ReportHost> = hosts.iter().map(ReportHost::from).collect();
         let host_count = hosts.len();
+        let total_cves = hosts.iter().map(|h| h.total_cves).sum();
+        let total_insecure_ports = hosts.iter().map(|h| h.insecure_ports).sum();
         ReportContext {
             generated_at: chrono::Utc::now().to_rfc3339(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             network: "unknown".to_string(),
             host_count,
+            total_cves,
+            total_insecure_ports,
             hosts,
         }
     }
