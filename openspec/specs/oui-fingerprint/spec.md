@@ -6,25 +6,21 @@ Vendor identification from MAC addresses via compile-time embedded Wireshark man
 
 ## Requirements
 
-### REQ-OUI-1: Embedded OUI Database
+### REQ-OUI-1: OUI Database Initialization
 
-| Field | Value |
-|-------|-------|
-| Statement | The system MUST embed the Wireshark manuf database at compile time via `include_dir` and parse it into `OuiDb` at first access via `LazyLock`. |
-| Priority | P1 |
-| Depends on | None |
+The system MUST initialize the OUI database at first access via `LazyLock`, attempting to load a cached manuf file from `~/.cache/netascan/manuf` first. If the cache is absent or unreadable, the system MUST fall back to the compile-time embedded database. The embedded DB SHALL remain as a permanent failsafe.
 
-#### Scenario: Lazy initialization
-- GIVEN manuf file in `data/` → WHEN binary starts → THEN `OuiDb` inits on first lookup
+#### Scenario: Cache hit initialization
+- GIVEN manuf in cache dir → WHEN `OuiDb` initializes → THEN loaded from cache
 
-#### Scenario: Valid entries indexed
-- GIVEN manuf with 3/4/5-byte entries → WHEN parsed → THEN all valid entries indexed
+#### Scenario: Cache miss fallback
+- GIVEN no cached manuf file → WHEN `OuiDb` initializes → THEN embedded DB loaded, no error
+
+#### Scenario: Corrupted cache fallback
+- GIVEN invalid cached manuf → WHEN `OuiDb` initializes → THEN warning logged, embedded DB loaded
 
 #### Scenario: Malformed lines skipped
 - GIVEN invalid manuf lines → WHEN parsed → THEN warnings logged, valid lines indexed
-
-#### Scenario: Empty manuf file
-- GIVEN empty manuf → WHEN initialized → THEN zero entries, no panic
 
 #### Scenario: Unicode preserved
 - GIVEN Unicode vendor name → WHEN returned → THEN original chars preserved
