@@ -168,8 +168,16 @@ pub async fn run() -> Result<(), Error> {
 
 /// Resolve the cache directory path.
 ///
-/// Uses `dirs::cache_dir()` with a fallback to the current working directory.
+/// When running under sudo, prefers the original user's cache dir via SUDO_USER
+/// to avoid storing files in /root/.cache.
 fn cache_dir() -> PathBuf {
+    // If running under sudo, resolve the real user's home directory
+    if let Ok(sudo_user) = std::env::var("SUDO_USER") {
+        let home = PathBuf::from("/home").join(&sudo_user);
+        if home.exists() {
+            return home.join(".cache");
+        }
+    }
     dirs::cache_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
