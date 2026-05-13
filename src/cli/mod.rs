@@ -1,6 +1,6 @@
 mod report;
 mod scan;
-mod serve;
+pub mod serve;
 mod update;
 
 use clap::{Parser, Subcommand};
@@ -130,8 +130,8 @@ pub async fn run() -> Result<(), Error> {
         Commands::Report(args) => {
             report::handle_report(&args).await?;
         }
-        Commands::Serve(_args) => {
-            println!("serve subcommand (stub)");
+        Commands::Serve(args) => {
+            crate::server::run(args).await?;
         }
         Commands::Update(args) => {
             handle_update(&args).await?;
