@@ -496,6 +496,7 @@ pub fn merge_results(ping_results: &[PingResult], arp_entries: &[ArpEntry]) -> V
                 method: DiscoveryMethod::Tcp, // Default; would be refined with source tagging
                 open_ports: vec![],
                 rtt_ms,
+                vendor: None,
             }
         })
         .collect();

@@ -1,0 +1,9 @@
+# Synthetic OUI/manuf database for testing
+# Format: PREFIX/MASK<TAB>ShortName<TAB>LongName
+
+00:00:0C	Cisco	Cisco Systems, Inc.
+00:1B:63:84:E0	Apple	Apple, Inc.
+00:1B:63:84	Apple4	Apple Inc. (4-byte)
+00:50:56	VMware	VMware, Inc.
+B8:27:EB	Raspberry	Raspberry Pi Foundation
+00:00:5E	ICANN	ICANN, IANA Department

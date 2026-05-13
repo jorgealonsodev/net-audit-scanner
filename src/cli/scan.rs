@@ -157,6 +157,7 @@ mod tests {
             method,
             open_ports: vec![],
             rtt_ms,
+            vendor: None,
         }
     }
 

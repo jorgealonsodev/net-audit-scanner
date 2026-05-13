@@ -57,6 +57,8 @@ pub struct DiscoveredHost {
     pub open_ports: Vec<OpenPort>,
     /// Round-trip time in milliseconds, if measured.
     pub rtt_ms: Option<u128>,
+    /// Vendor name from OUI/MAC fingerprinting, if available.
+    pub vendor: Option<String>,
 }
 
 /// The method by which a host was discovered.
@@ -134,6 +136,7 @@ mod tests {
                 },
             ],
             rtt_ms: Some(5),
+            vendor: None,
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("192.168.1.10"));
@@ -220,6 +223,7 @@ mod tests {
             method: DiscoveryMethod::Tcp,
             open_ports: vec![],
             rtt_ms: None,
+            vendor: None,
         };
         let debug = format!("{:?}", host);
         assert!(debug.contains("127.0.0.1"));
@@ -241,6 +245,7 @@ mod tests {
                 is_insecure: true,
             }],
             rtt_ms: Some(3),
+            vendor: None,
         };
         let cloned = host.clone();
         assert_eq!(host.ip, cloned.ip);
@@ -255,6 +260,28 @@ mod tests {
         assert_eq!(serde_json::to_string(&ServiceType::Telnet).unwrap(), r#""telnet""#);
         assert_eq!(serde_json::to_string(&ServiceType::Ftp).unwrap(), r#""ftp""#);
         assert_eq!(serde_json::to_string(&ServiceType::Unknown).unwrap(), r#""unknown""#);
+    }
+
+    #[test]
+    fn discovered_host_vendor_serializes() {
+        let host = DiscoveredHost {
+            ip: "192.168.1.1".parse().unwrap(),
+            mac: None,
+            hostname: None,
+            method: DiscoveryMethod::Icmp,
+            open_ports: vec![],
+            rtt_ms: None,
+            vendor: Some("Apple, Inc.".into()),
+        };
+        let json = serde_json::to_string(&host).unwrap();
+        assert!(json.contains("Apple, Inc."));
+    }
+
+    #[test]
+    fn discovered_host_vendor_deserializes() {
+        let json = r#"{"ip":"10.0.0.1","mac":null,"hostname":null,"method":"tcp","open_ports":[],"rtt_ms":null,"vendor":"Cisco Systems"}"#;
+        let host: DiscoveredHost = serde_json::from_str(json).unwrap();
+        assert_eq!(host.vendor, Some("Cisco Systems".into()));
     }
 
     #[test]
