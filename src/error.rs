@@ -29,6 +29,9 @@ pub enum Error {
 
     #[error("Template error: {0}")]
     Template(String),
+
+    #[error("Update error: {0}")]
+    Update(String),
 }
 
 #[cfg(test)]

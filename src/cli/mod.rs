@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use crate::error::Error;
 use crate::scanner::{Scanner, detect, detect_local_network};
 use scan::{format_hosts_json, format_hosts_table};
+use update::{handle_update, UpdateArgs};
 
 /// netascan — Network security audit CLI
 #[derive(Parser)]
@@ -28,7 +29,7 @@ pub enum Commands {
     /// Start the local web dashboard server
     Serve(serve::ServeArgs),
     /// Update OUI database and default credential lists
-    Update,
+    Update(UpdateArgs),
 }
 
 /// Parse CLI arguments and dispatch to the appropriate subcommand handler.
@@ -82,7 +83,12 @@ pub async fn run() -> Result<(), Error> {
             let mut hosts = scanner.scan_ports(hosts).await;
 
             // Enrich with OUI/vendor data
-            crate::scanner::enrich_oui(&crate::scanner::OUI_DB, &mut hosts);
+            let oui_db = if args.no_update {
+                crate::scanner::OuiDb::from_embedded()
+            } else {
+                crate::scanner::OUI_DB.clone()
+            };
+            crate::scanner::enrich_oui(&oui_db, &mut hosts);
 
             // Enrich with CVE data (unless skipped)
             if !args.no_cve {
@@ -127,8 +133,8 @@ pub async fn run() -> Result<(), Error> {
         Commands::Serve(_args) => {
             println!("serve subcommand (stub)");
         }
-        Commands::Update => {
-            println!("update subcommand (stub)");
+        Commands::Update(args) => {
+            handle_update(&args).await?;
         }
     }
 
@@ -191,6 +197,26 @@ mod tests {
     #[test]
     fn parse_update_subcommand() {
         let cli = Cli::parse_from(["netascan", "update"]);
-        assert!(matches!(cli.command, Commands::Update));
+        assert!(matches!(cli.command, Commands::Update(_)));
+    }
+
+    #[test]
+    fn parse_update_subcommand_with_source() {
+        let cli = Cli::parse_from(["netascan", "update", "--source", "https://example.com/manuf"]);
+        if let Commands::Update(args) = cli.command {
+            assert_eq!(args.source, Some("https://example.com/manuf".to_string()));
+        } else {
+            panic!("Expected Update command");
+        }
+    }
+
+    #[test]
+    fn parse_scan_with_no_update() {
+        let cli = Cli::parse_from(["netascan", "scan", "--no-update"]);
+        if let Commands::Scan(args) = cli.command {
+            assert!(args.no_update);
+        } else {
+            panic!("Expected Scan command");
+        }
     }
 }

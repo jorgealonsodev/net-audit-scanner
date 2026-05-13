@@ -38,6 +38,7 @@ predicates = "3"
 criterion = "0.5"
 tokio-test = "0.4"
 wiremock = "0.6.5"
+tempfile = "3"
 
 [[bench]]
 name = "benchmark"

@@ -122,3 +122,29 @@ fn scan_json_output_format() {
     // JSON output should be valid JSON array
     assert!(stdout.trim().starts_with('['), "expected JSON array, got: {stdout}");
 }
+
+// ─── Update CLI tests ───
+
+#[test]
+fn update_help_shows_source_flag() {
+    let mut cmd = Command::cargo_bin("netascan").unwrap();
+    cmd.args(["update", "--help"]);
+    let output = cmd.assert().success().get_output().stdout.clone();
+    let stdout = String::from_utf8_lossy(&output);
+    assert!(
+        stdout.contains("--source"),
+        "update help should show --source flag"
+    );
+}
+
+#[test]
+fn scan_help_shows_no_update_flag() {
+    let mut cmd = Command::cargo_bin("netascan").unwrap();
+    cmd.args(["scan", "--help"]);
+    let output = cmd.assert().success().get_output().stdout.clone();
+    let stdout = String::from_utf8_lossy(&output);
+    assert!(
+        stdout.contains("--no-update"),
+        "scan help should show --no-update flag"
+    );
+}

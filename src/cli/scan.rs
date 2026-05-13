@@ -44,6 +44,10 @@ pub struct ScanArgs {
     /// Output report format (html, json)
     #[arg(short, long, default_value = "html")]
     pub report: String,
+
+    /// Skip cache and use embedded OUI database
+    #[arg(long)]
+    pub no_update: bool,
 }
 
 /// Format discovered hosts as an aligned plain-text table.

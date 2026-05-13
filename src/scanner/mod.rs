@@ -16,7 +16,7 @@ pub use discovery::{Scanner, detect_local_network, expand_cidr, merge_results, p
 pub use models::{
     ArpEntry, Capabilities, DiscoveredHost, DiscoveryMethod, OpenPort, PingResult, Protocol, ServiceType,
 };
-pub use oui::{OuiDb, OUI_DB, enrich_oui};
+pub use oui::{OuiDb, OUI_DB, cache_path, enrich_oui, get_oui_db};
 pub use ports::{IOT_CRITICAL_PORTS, PORT_LIST_TOP_100, PORT_LIST_TOP_1000, resolve_port_list};
 pub use services::{build_open_port, classify_service, grab_banner, is_insecure};
 
