@@ -8,23 +8,66 @@ netascan scan --network 192.168.1.0/24
 
 ---
 
+## Installation
+
+### Pre-built binaries (recommended)
+
+Download the latest release from the [Releases page](https://github.com/jorgealonsodev/net-audit-scanner/releases).
+
+**Linux (tar.gz)**
+
+```bash
+tar -xzf netascan-v0.1.0-x86_64-unknown-linux-gnu.tar.gz
+sudo mv netascan /usr/local/bin/
+```
+
+**macOS (tar.gz)**
+
+```bash
+tar -xzf netascan-v0.1.0-aarch64-apple-darwin.tar.gz
+sudo mv netascan /usr/local/bin/
+```
+
+**Windows (zip)**
+
+Extract `netascan-v0.1.0-x86_64-pc-windows-msvc.zip` and add the folder to your `PATH`.
+
+### Debian / Ubuntu (.deb)
+
+```bash
+wget https://github.com/jorgealonsodev/net-audit-scanner/releases/latest/download/netascan-v0.1.0-amd64.deb
+sudo dpkg -i netascan-v0.1.0-amd64.deb
+```
+
+### Build from source
+
+Requires Rust stable (`rustup update stable`) and `libpcap-dev` on Linux.
+
+```bash
+# Linux
+sudo apt-get install -y libpcap-dev
+
+# Build
+cargo build --release
+sudo mv target/release/netascan /usr/local/bin/
+```
+
+---
+
 ## Quick start
 
 ```bash
-# Build
-cargo build --release
-
 # Scan your local network (auto-detects interface)
-./target/release/netascan scan
+sudo netascan scan
 
 # Scan a specific range and open an HTML report
-./target/release/netascan scan --network 192.168.1.0/24 --report html
+sudo netascan scan --network 192.168.1.0/24 --report html
 
 # View the most recent scan as a report
-./target/release/netascan report --last
+netascan report --last
 
 # Start the web dashboard (upload + browse reports)
-./target/release/netascan serve
+netascan serve
 ```
 
 > **Requires root / CAP_NET_RAW** for ICMP sweep. Without it, netascan falls back to TCP + ARP discovery.
