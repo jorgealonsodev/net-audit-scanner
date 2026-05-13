@@ -1,0 +1,19 @@
+# Test fixture for OUI/manuf parsing
+# Format: PREFIX[/MASK]<TAB>ShortName<TAB>LongName
+
+# 3-byte prefix
+00:00:0C	Cisco	Cisco Systems, Inc.
+
+# 4-byte prefix
+00:1B:63:84	Apple4	Apple Inc. (4-byte)
+
+# 5-byte prefix
+00:1B:63:84:E0	Apple5	Apple, Inc.
+
+# Comment line should be skipped
+# Blank lines below should be skipped
+
+00:50:56	VMware	VMware, Inc.
+
+# Malformed line — should be gracefully skipped
+not-a-valid-prefix	Bad	Bad Vendor

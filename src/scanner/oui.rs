@@ -268,6 +268,34 @@ mod tests {
         assert!(hosts[0].vendor.is_none());
     }
 
+    // ─── fixture-based integration test ───
+
+    #[test]
+    fn parse_manuf_from_fixture_file() {
+        let content = std::fs::read_to_string("tests/fixtures/manuf.txt").unwrap();
+        let db = parse_manuf(&content);
+
+        // 3-byte prefix
+        let mac3: macaddr::MacAddr6 = "00:00:0C:11:22:33".parse().unwrap();
+        assert_eq!(db.lookup(&mac3), Some("Cisco Systems, Inc."));
+
+        // 4-byte prefix
+        let mac4: macaddr::MacAddr6 = "00:1B:63:84:AA:BB".parse().unwrap();
+        assert_eq!(db.lookup(&mac4), Some("Apple Inc. (4-byte)"));
+
+        // 5-byte prefix
+        let mac5: macaddr::MacAddr6 = "00:1B:63:84:E0:01".parse().unwrap();
+        assert_eq!(db.lookup(&mac5), Some("Apple, Inc."));
+
+        // Another 3-byte prefix from fixture
+        let mac_vm: macaddr::MacAddr6 = "00:50:56:01:02:03".parse().unwrap();
+        assert_eq!(db.lookup(&mac_vm), Some("VMware, Inc."));
+
+        // Unknown MAC should return None
+        let mac_unknown: macaddr::MacAddr6 = "FF:FF:FF:FF:FF:FF".parse().unwrap();
+        assert_eq!(db.lookup(&mac_unknown), None);
+    }
+
     #[test]
     fn enrich_oui_mutates_in_place() {
         let db = parse_manuf("B8:27:EB\tRaspberry\tRaspberry Pi Foundation\n");
