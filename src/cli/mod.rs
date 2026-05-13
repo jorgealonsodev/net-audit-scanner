@@ -121,8 +121,8 @@ pub async fn run() -> Result<(), Error> {
                 println!("{}", format_hosts_table(&hosts));
             }
         }
-        Commands::Report(_args) => {
-            println!("report subcommand (stub)");
+        Commands::Report(args) => {
+            report::handle_report(&args).await?;
         }
         Commands::Serve(_args) => {
             println!("serve subcommand (stub)");

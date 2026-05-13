@@ -23,6 +23,12 @@ pub enum Error {
 
     #[error("Discovery error: {0}")]
     Discovery(String),
+
+    #[error("Report error: {0}")]
+    Report(String),
+
+    #[error("Template error: {0}")]
+    Template(String),
 }
 
 #[cfg(test)]
@@ -52,5 +58,33 @@ mod tests {
         let err = Error::Permission("test".into());
         let debug = format!("{:?}", err);
         assert!(debug.contains("Permission"));
+    }
+
+    #[test]
+    fn report_error_display() {
+        let err = Error::Report("failed to generate report".into());
+        assert_eq!(format!("{}", err), "Report error: failed to generate report");
+    }
+
+    #[test]
+    fn template_error_display() {
+        let err = Error::Template("undefined variable 'foo'".into());
+        assert_eq!(format!("{}", err), "Template error: undefined variable 'foo'");
+    }
+
+    #[test]
+    fn report_error_is_debug() {
+        let err = Error::Report("test".into());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("Report"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn template_error_is_debug() {
+        let err = Error::Template("test".into());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("Template"));
+        assert!(debug.contains("test"));
     }
 }
