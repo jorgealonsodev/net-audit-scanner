@@ -125,6 +125,7 @@ pub fn build_open_port(port: u16, banner: Option<&str>, host_has_https: bool) ->
         banner: banner.map(String::from),
         protocol: Protocol::Tcp,
         is_insecure: insecure,
+        cves: vec![],
     }
 }
 
