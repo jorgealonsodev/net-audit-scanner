@@ -1,9 +1,30 @@
 //! OUI (Organizationally Unique Identifier) fingerprinting module.
 //!
-//! Provides MAC address vendor lookup using the Wireshark manuf database.
-//! The database is embedded at compile time via `include_dir!` and parsed
+//! Provides MAC address vendor lookup using the Wireshark `manuf` database.
+//! The database is embedded at compile time via [`include_dir!`] and parsed
 //! into three `HashMap`s keyed by 3-byte, 4-byte, and 5-byte MAC prefixes.
-//! Lookup uses longest-prefix-match: tries 5-byte first, then 4-byte, then 3-byte.
+//!
+//! # Design
+//!
+//! - **Three HashMaps** (`[u8; 3]`, `[u8; 4]`, `[u8; 5]`) give compile-time key sizes,
+//!   trivial `Hash`/`Eq`, and zero allocations on lookup.
+//! - **Longest-prefix-match**: lookup tries 5-byte first, then 4-byte, then 3-byte.
+//!   This ensures the most specific OUI wins when multiple prefixes overlap.
+//! - **Byte-boundary rounding**: prefix masks (e.g. `/28`, `/30`) are rounded up to
+//!   the nearest byte boundary. A `/28` entry is stored as a 4-byte exact match.
+//! - **Compile-time embed**: the `manuf` file lives in `data/manuf/` and is baked
+//!   into the binary via `include_dir!`. A missing file causes a compile error
+//!   (hard fail) rather than silent degradation at runtime.
+//!
+//! # Pipeline
+//!
+//! ```text
+//! data/manuf (embedded) → LazyLock<OuiDb> → lookup(mac) → Option<&str>
+//!                                                    ↓
+//! CLI: discover → scan_ports → enrich_oui → output
+//! ```
+//!
+//! [`include_dir!`]: include_dir::include_dir
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -131,9 +152,25 @@ pub fn parse_manuf(content: &str) -> OuiDb {
 
 /// Enrich discovered hosts with vendor information from the OUI database.
 ///
-/// Preconditions:
-/// - Call after `scan_ports()` in the CLI pipeline.
-/// - MAC addresses must be populated (typically by ARP discovery).
+/// Iterates over `hosts` and mutates `vendor` in place when a matching OUI
+/// prefix is found for the host's MAC address.
+///
+/// # Preconditions
+///
+/// 1. Call **after** `scan_ports()` in the CLI pipeline.
+/// 2. MAC addresses must be populated — typically by ARP discovery
+///    (`parse_proc_net_arp`) or other L2 probes.
+/// 3. Hosts without a MAC address are left unchanged (`vendor` stays `None`).
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use netascan::scanner::{OuiDb, enrich_oui};
+///
+/// let db = OuiDb::from_embedded();
+/// // hosts must have MAC addresses populated
+/// // enrich_oui(&db, &mut hosts);
+/// ```
 pub fn enrich_oui(db: &OuiDb, hosts: &mut [DiscoveredHost]) {
     for host in hosts.iter_mut() {
         if let Some(mac) = host.mac.as_ref() {
