@@ -336,6 +336,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -354,6 +355,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -401,6 +403,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                device_model: None,
                 os_hint: None,
                 security_findings: vec![],
             },
@@ -412,6 +415,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                device_model: None,
                 os_hint: None,
                 security_findings: vec![],
             },

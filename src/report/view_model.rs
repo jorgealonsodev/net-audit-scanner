@@ -32,6 +32,7 @@ pub struct ReportHost {
     pub mac: Option<String>,
     pub hostname: Option<String>,
     pub vendor: Option<String>,
+    pub device_model: Option<String>,
     pub open_ports: Vec<ReportPort>,
     pub cves: Vec<ReportCve>,
     pub total_cves: usize,
@@ -96,6 +97,7 @@ impl From<&DiscoveredHost> for ReportHost {
             mac: host.mac.map(format_mac),
             hostname: host.hostname.clone(),
             vendor: host.vendor.clone(),
+            device_model: host.device_model.clone(),
             open_ports,
             cves,
             total_cves,
@@ -283,6 +285,7 @@ mod tests {
             ],
             rtt_ms: Some(5),
             vendor: Some("Apple, Inc.".into()),
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -310,6 +313,7 @@ mod tests {
             ],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -330,6 +334,7 @@ mod tests {
             open_ports: vec![make_port(443, ServiceType::Https, false, vec![])],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -349,6 +354,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -366,6 +372,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -387,6 +394,7 @@ mod tests {
             ],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -409,6 +417,7 @@ mod tests {
             )],
             rtt_ms: Some(10),
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -419,6 +428,27 @@ mod tests {
         assert!(json.contains("CVE-2021-TEST"));
         assert!(json.contains("total_cves"));
         assert!(json.contains("insecure_ports"));
+    }
+
+    #[test]
+    fn report_host_includes_device_model() {
+        let host = DiscoveredHost {
+            ip: "192.168.1.20".parse().unwrap(),
+            mac: None,
+            hostname: Some("switch".into()),
+            method: crate::scanner::models::DiscoveryMethod::Icmp,
+            open_ports: vec![],
+            rtt_ms: None,
+            vendor: Some("Ubiquiti".into()),
+            device_model: Some("UniFi Switch 8".into()),
+            os_hint: None,
+            security_findings: vec![],
+        };
+
+        let report = ReportHost::from(&host);
+        let json = serde_json::to_string(&report).unwrap();
+
+        assert!(json.contains("UniFi Switch 8"));
     }
 
     // ── ReportContext tests ──
@@ -434,6 +464,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                device_model: None,
                 os_hint: None,
                 security_findings: vec![],
             },
@@ -445,6 +476,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                device_model: None,
                 os_hint: None,
                 security_findings: vec![],
             },
@@ -477,6 +509,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];

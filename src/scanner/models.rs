@@ -3,6 +3,7 @@
 use crate::cve::models::CveMatch;
 use crate::security::SecurityFinding;
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display};
 use std::net::IpAddr;
 
 /// Detected service type on an open port.
@@ -27,6 +28,16 @@ pub enum ServiceType {
 #[serde(rename_all = "lowercase")]
 pub enum Protocol {
     Tcp,
+    Udp,
+}
+
+impl Display for Protocol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Tcp => f.write_str("tcp"),
+            Self::Udp => f.write_str("udp"),
+        }
+    }
 }
 
 /// An open port with service detection metadata.
@@ -64,6 +75,9 @@ pub struct DiscoveredHost {
     pub rtt_ms: Option<u128>,
     /// Vendor name from OUI/MAC fingerprinting, if available.
     pub vendor: Option<String>,
+    /// Device model inferred from enrichment sources, if available.
+    #[serde(default)]
+    pub device_model: Option<String>,
     /// OS hint inferred from TTL or service banners, if available.
     #[serde(default)]
     pub os_hint: Option<String>,
@@ -185,6 +199,7 @@ mod tests {
             ],
             rtt_ms: Some(5),
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -275,6 +290,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -300,6 +316,7 @@ mod tests {
             }],
             rtt_ms: Some(3),
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -328,6 +345,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: Some("Apple, Inc.".into()),
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -345,6 +363,30 @@ mod tests {
     #[test]
     fn protocol_tcp_serializes() {
         assert_eq!(serde_json::to_string(&Protocol::Tcp).unwrap(), r#""tcp""#);
+    }
+
+    #[test]
+    fn protocol_udp_serializes() {
+        assert_eq!(serde_json::to_string(&Protocol::Udp).unwrap(), r#""udp""#);
+    }
+
+    #[test]
+    fn discovered_host_device_model_roundtrip() {
+        let json = r#"{
+            "ip": "10.0.0.8",
+            "mac": null,
+            "hostname": null,
+            "method": "tcp",
+            "open_ports": [],
+            "rtt_ms": null,
+            "device_model": "UniFi AP"
+        }"#;
+
+        let host: DiscoveredHost = serde_json::from_str(json).unwrap();
+        assert_eq!(host.device_model, Some("UniFi AP".into()));
+
+        let encoded = serde_json::to_string(&host).unwrap();
+        assert!(encoded.contains("\"device_model\":\"UniFi AP\""));
     }
 
     #[test]
@@ -416,6 +458,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -433,6 +476,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: Some("Linux".into()),
             security_findings: vec![],
         };
@@ -508,6 +552,7 @@ mod tests {
                 open_ports: vec![],
                 rtt_ms: None,
                 vendor: None,
+                device_model: None,
                 os_hint: None,
                 security_findings: vec![],
             }],
@@ -563,6 +608,7 @@ mod tests {
                     open_ports: vec![],
                     rtt_ms: Some(2),
                     vendor: None,
+                    device_model: None,
                     os_hint: None,
                     security_findings: vec![],
                 },
@@ -574,6 +620,7 @@ mod tests {
                     open_ports: vec![],
                     rtt_ms: None,
                     vendor: Some("Unknown".into()),
+                    device_model: None,
                     os_hint: Some("Linux".into()),
                     security_findings: vec![],
                 },

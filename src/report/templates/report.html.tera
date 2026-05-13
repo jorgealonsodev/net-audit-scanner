@@ -54,6 +54,7 @@
                 <th>MAC</th>
                 <th>Hostname</th>
                 <th>Vendor</th>
+                <th>Model</th>
                 <th>Open Ports</th>
                 <th>Insecure</th>
                 <th>CVEs</th>
@@ -66,6 +67,7 @@
                 <td>{{ host.mac | default(value="-") }}</td>
                 <td>{{ host.hostname | default(value="-") }}</td>
                 <td>{{ host.vendor | default(value="-") }}</td>
+                <td>{{ host.device_model | default(value="-") }}</td>
                 <td>{{ host.open_ports | length }}</td>
                 <td>{{ host.insecure_ports }}</td>
                 <td>{{ host.total_cves }}</td>
@@ -76,6 +78,7 @@
 
     {% for host in hosts %}
     <h2>Host: {{ host.ip }}{% if host.hostname %} ({{ host.hostname }}){% endif %}</h2>
+    <p class="meta">Vendor: {{ host.vendor | default(value="-") }} | Model: {{ host.device_model | default(value="-") }}</p>
 
     <h3>Open Ports</h3>
     <table>

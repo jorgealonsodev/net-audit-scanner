@@ -203,6 +203,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms,
             vendor: vendor.map(String::from),
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }
@@ -347,6 +348,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -390,6 +392,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];

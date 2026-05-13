@@ -94,6 +94,7 @@ mod tests {
             open_ports: ports,
             rtt_ms: None,
             vendor: Some("Test Vendor".into()),
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }
@@ -153,6 +154,17 @@ mod tests {
         assert!(html.contains("Test Vendor"));
         // Template renders host.cves length (from view model aggregation)
         assert!(html.contains("<td>1</td>"));
+    }
+
+    #[test]
+    fn render_html_shows_device_model() {
+        let engine = ReportEngine::new().unwrap();
+        let mut host = make_host("10.0.0.9", vec![]);
+        host.device_model = Some("Synology DS920+".into());
+        let ctx = ReportContext::from(&vec![host]);
+        let html = engine.render_html(&ctx).unwrap();
+
+        assert!(html.contains("Synology DS920+"));
     }
 
     #[test]

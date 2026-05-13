@@ -76,12 +76,7 @@ pub async fn check_ftp_credentials(ip: IpAddr, port: u16) -> Option<SecurityFind
     use tokio::net::TcpStream;
     use tokio::time::timeout;
 
-    let stream = match timeout(
-        std::time::Duration::from_secs(3),
-        TcpStream::connect((ip, port)),
-    )
-    .await
-    {
+    let stream = match timeout(std::time::Duration::from_secs(3), TcpStream::connect((ip, port))).await {
         Ok(Ok(s)) => s,
         _ => {
             tracing::warn!("FTP connection timeout for {}:{}", ip, port);
@@ -105,7 +100,11 @@ pub async fn check_ftp_credentials(ip: IpAddr, port: u16) -> Option<SecurityFind
 
     for (username, password) in DEFAULT_CREDS {
         // Send USER command
-        if writer.write_all(format!("USER {}\r\n", username).as_bytes()).await.is_err() {
+        if writer
+            .write_all(format!("USER {}\r\n", username).as_bytes())
+            .await
+            .is_err()
+        {
             continue;
         }
 
@@ -133,7 +132,11 @@ pub async fn check_ftp_credentials(ip: IpAddr, port: u16) -> Option<SecurityFind
         }
 
         // Send PASS command
-        if writer.write_all(format!("PASS {}\r\n", password).as_bytes()).await.is_err() {
+        if writer
+            .write_all(format!("PASS {}\r\n", password).as_bytes())
+            .await
+            .is_err()
+        {
             continue;
         }
 
@@ -172,12 +175,7 @@ pub async fn check_telnet_credentials(ip: IpAddr, port: u16) -> Option<SecurityF
     use tokio::net::TcpStream;
     use tokio::time::timeout;
 
-    let stream = match timeout(
-        std::time::Duration::from_secs(5),
-        TcpStream::connect((ip, port)),
-    )
-    .await
-    {
+    let stream = match timeout(std::time::Duration::from_secs(5), TcpStream::connect((ip, port))).await {
         Ok(Ok(s)) => s,
         _ => {
             tracing::warn!("Telnet connection timeout for {}:{}", ip, port);
@@ -276,15 +274,9 @@ pub async fn check_default_credentials(
 
         for open_port in &host.open_ports {
             let finding = match open_port.service {
-                crate::scanner::models::ServiceType::Http => {
-                    check_http_credentials(ip, open_port.port).await
-                }
-                crate::scanner::models::ServiceType::Ftp => {
-                    check_ftp_credentials(ip, open_port.port).await
-                }
-                crate::scanner::models::ServiceType::Telnet => {
-                    check_telnet_credentials(ip, open_port.port).await
-                }
+                crate::scanner::models::ServiceType::Http => check_http_credentials(ip, open_port.port).await,
+                crate::scanner::models::ServiceType::Ftp => check_ftp_credentials(ip, open_port.port).await,
+                crate::scanner::models::ServiceType::Telnet => check_telnet_credentials(ip, open_port.port).await,
                 _ => None,
             };
 
@@ -432,6 +424,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -489,6 +482,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -545,6 +539,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -604,6 +599,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -672,6 +668,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -735,6 +732,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];
@@ -810,6 +808,7 @@ mod tests {
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }];

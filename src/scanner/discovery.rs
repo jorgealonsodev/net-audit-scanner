@@ -535,6 +535,7 @@ pub fn merge_results(ping_results: &[PingResult], arp_entries: &[ArpEntry]) -> V
                 open_ports: vec![],
                 rtt_ms,
                 vendor: None,
+                device_model: None,
                 os_hint: ttl_hint,
                 security_findings: vec![],
             }
@@ -837,6 +838,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             }],
             rtt_ms: Some(5),
             vendor: None,
+            device_model: None,
             os_hint: Some("Linux/macOS".into()), // TTL hint
             security_findings: vec![],
         };
@@ -861,6 +863,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             }],
             rtt_ms: None,
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
@@ -885,6 +888,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             }],
             rtt_ms: Some(5),
             vendor: None,
+            device_model: None,
             os_hint: Some("Linux/macOS".into()),
             security_findings: vec![],
         };
@@ -903,6 +907,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             open_ports: vec![],
             rtt_ms: Some(5),
             vendor: None,
+            device_model: None,
             os_hint: Some("Linux/macOS".into()),
             security_findings: vec![],
         };
@@ -937,6 +942,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             ],
             rtt_ms: Some(5),
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         };
