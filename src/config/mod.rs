@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use std::path::PathBuf;
 
+use crate::enrichment::EnrichmentConfig;
+
 /// Scan configuration section.
 #[derive(Debug, Deserialize)]
 pub struct ScanConfig {
@@ -80,6 +82,8 @@ pub struct Config {
     pub cve: CveConfig,
     pub report: ReportConfig,
     pub credentials_check: CredentialsCheckConfig,
+    #[serde(default)]
+    pub enrichment: EnrichmentConfig,
 }
 
 impl Config {
@@ -125,5 +129,15 @@ mod tests {
         // On a clean environment without ~/.netascan/config.toml, load returns defaults.
         let cfg = Config::load().expect("load should succeed with defaults");
         assert_eq!(cfg.scan.default_network, "auto");
+    }
+
+    #[test]
+    fn default_config_has_enrichment_defaults() {
+        let cfg = Config::default();
+        assert!(cfg.enrichment.snmp_enabled);
+        assert!(cfg.enrichment.mdns_enabled);
+        assert!(!cfg.enrichment.mac_api_enabled);
+        assert_eq!(cfg.enrichment.snmp_timeout_ms, 1000);
+        assert_eq!(cfg.enrichment.mdns_timeout_ms, 2000);
     }
 }
