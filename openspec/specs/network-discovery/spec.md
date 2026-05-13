@@ -92,7 +92,7 @@ Discover live hosts via ICMP, TCP, and ARP with permission-aware fallback.
 
 | Field | Value |
 |-------|-------|
-| Statement | Run all available discovery methods concurrently, merge and deduplicate by IP (prefer MAC from ARP, hostname from reverse DNS). After discovery, invoke port scanning on each host to populate open_ports with OpenPort records including service classification and insecure flagging. Full pipeline: discovery → port scan → classification → flagging. |
+| Statement | Run all available discovery methods concurrently, merge and deduplicate by IP (prefer MAC from ARP, hostname from reverse DNS). After discovery, invoke port scanning on each host to populate open_ports with OpenPort records including service classification and insecure flagging, then enrich each host with vendor identification from MAC OUI lookup. Full pipeline: discovery → port scan → OUI enrichment → classification → flagging. |
 | Priority | P1 |
 | Depends on | REQ-DISC-1, REQ-DISC-4, REQ-DISC-5, REQ-DISC-6 |
 
@@ -122,7 +122,7 @@ Discover live hosts via ICMP, TCP, and ARP with permission-aware fallback.
 
 | Field | Value |
 |-------|-------|
-| Statement | `scan --network <CIDR|auto>` runs the full pipeline (discovery → port scan → classification → flagging). `--full` scans all 65535 ports. `--no-cve` skips CVE lookup. Port list resolution uses ScanConfig.port_range ("top-100", "top-1000", or custom range). Output table: IP, MAC, Hostname, Method, Ports. |
+| Statement | `scan --network <CIDR|auto>` runs the full pipeline (discovery → port scan → OUI enrichment → classification → flagging). `--full` scans all 65535 ports. `--no-cve` skips CVE lookup. Port list resolution uses ScanConfig.port_range ("top-100", "top-1000", or custom range). Output table: IP, MAC, Vendor, Hostname, Method, Ports. |
 | Priority | P1 |
 | Depends on | REQ-DISC-2, REQ-DISC-7 |
 
@@ -132,7 +132,7 @@ Discover live hosts via ICMP, TCP, and ARP with permission-aware fallback.
 
 - GIVEN root, typical network
 - WHEN `netascan scan --network auto` runs
-- THEN table shows columns: IP, MAC, Hostname, Method, Ports
+- THEN table shows columns: IP, MAC, Vendor, Hostname, Method, Ports
 
 #### Scenario: Explicit CIDR
 
