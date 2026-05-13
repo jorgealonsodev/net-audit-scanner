@@ -1,0 +1,15 @@
+theme: just-the-docs
+title: netascan
+description: Network security audit CLI — discovers devices, fingerprints services, checks CVEs, and tests default credentials.
+url: "https://jorgealonsodev.github.io"
+baseurl: "/net-audit-scanner"
+
+aux_links:
+  "GitHub":
+    - "https://github.com/jorgealonsodev/net-audit-scanner"
+
+aux_links_new_tab: true
+
+footer_content: "MIT License &mdash; Copyright &copy; 2026 Jorge Alonso"
+
+color_scheme: dark
