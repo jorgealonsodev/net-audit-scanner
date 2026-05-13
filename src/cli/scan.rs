@@ -57,6 +57,7 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
     // Compute column widths
     let mut ip_width = 2; // "IP"
     let mut mac_width = 3; // "MAC"
+    let mut vendor_width = 6; // "Vendor"
     let mut hostname_width = 8; // "Hostname"
     let mut method_width = 6; // "Method"
     let mut rtt_width = 11; // "Response Time"
@@ -64,12 +65,14 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
     for host in hosts {
         let ip_len = host.ip.to_string().len();
         let mac_len = host.mac.map(|m| m.to_string().len()).unwrap_or(0);
+        let vendor_len = host.vendor.as_deref().unwrap_or("-").len();
         let hostname_len = host.hostname.as_deref().unwrap_or("-").len();
         let method_len = format!("{:?}", host.method).len();
         let rtt_len = host.rtt_ms.map(|r| format!("{r} ms").len()).unwrap_or(2); // "-"
 
         ip_width = ip_width.max(ip_len);
         mac_width = mac_width.max(mac_len);
+        vendor_width = vendor_width.max(vendor_len);
         hostname_width = hostname_width.max(hostname_len);
         method_width = method_width.max(method_len);
         rtt_width = rtt_width.max(rtt_len);
@@ -79,14 +82,16 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
 
     // Header
     lines.push(format!(
-        "{:<ip_width$}  {:<mac_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}",
+        "{:<ip_width$}  {:<mac_width$}  {:<vendor_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}",
         "IP",
         "MAC",
+        "Vendor",
         "Hostname",
         "Method",
         "Response Time",
         ip_width = ip_width,
         mac_width = mac_width,
+        vendor_width = vendor_width,
         hostname_width = hostname_width,
         method_width = method_width,
         rtt_width = rtt_width,
@@ -94,7 +99,8 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
 
     // Separator
     lines.push(format!(
-        "{:-<ip_width$}  {:-<mac_width$}  {:-<hostname_width$}  {:-<method_width$}  {:-<rtt_width$}",
+        "{:-<ip_width$}  {:-<mac_width$}  {:-<vendor_width$}  {:-<hostname_width$}  {:-<method_width$}  {:-<rtt_width$}",
+        "",
         "",
         "",
         "",
@@ -102,6 +108,7 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
         "",
         ip_width = ip_width,
         mac_width = mac_width,
+        vendor_width = vendor_width,
         hostname_width = hostname_width,
         method_width = method_width,
         rtt_width = rtt_width,
@@ -110,19 +117,22 @@ pub fn format_hosts_table(hosts: &[DiscoveredHost]) -> String {
     // Rows
     for host in hosts {
         let mac = host.mac.map(|m| m.to_string()).unwrap_or_default();
+        let vendor = host.vendor.as_deref().unwrap_or("-");
         let hostname = host.hostname.as_deref().unwrap_or("-");
         let method = format!("{:?}", host.method);
         let rtt = host.rtt_ms.map(|r| format!("{r} ms")).unwrap_or("-".to_string());
 
         lines.push(format!(
-            "{:<ip_width$}  {:<mac_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}",
+            "{:<ip_width$}  {:<mac_width$}  {:<vendor_width$}  {:<hostname_width$}  {:<method_width$}  {:<rtt_width$}",
             host.ip,
             mac,
+            vendor,
             hostname,
             method,
             rtt,
             ip_width = ip_width,
             mac_width = mac_width,
+            vendor_width = vendor_width,
             hostname_width = hostname_width,
             method_width = method_width,
             rtt_width = rtt_width,
@@ -150,6 +160,17 @@ mod tests {
         method: DiscoveryMethod,
         rtt_ms: Option<u128>,
     ) -> DiscoveredHost {
+        make_host_with_vendor(ip, mac, hostname, method, rtt_ms, None)
+    }
+
+    fn make_host_with_vendor(
+        ip: &str,
+        mac: Option<&str>,
+        hostname: Option<&str>,
+        method: DiscoveryMethod,
+        rtt_ms: Option<u128>,
+        vendor: Option<&str>,
+    ) -> DiscoveredHost {
         DiscoveredHost {
             ip: ip.parse::<IpAddr>().unwrap(),
             mac: mac.map(|m| m.parse().unwrap()),
@@ -157,7 +178,7 @@ mod tests {
             method,
             open_ports: vec![],
             rtt_ms,
-            vendor: None,
+            vendor: vendor.map(String::from),
         }
     }
 
@@ -233,5 +254,28 @@ mod tests {
     fn format_hosts_json_empty_array() {
         let output = format_hosts_json(&[]);
         assert_eq!(output.trim(), "[]");
+    }
+
+    #[test]
+    fn format_hosts_table_includes_vendor_column() {
+        let hosts = vec![make_host_with_vendor(
+            "192.168.1.1",
+            Some("00:00:0C:11:22:33"),
+            Some("router.local"),
+            DiscoveryMethod::Icmp,
+            Some(5),
+            Some("Cisco Systems, Inc."),
+        )];
+        let output = format_hosts_table(&hosts);
+        assert!(output.contains("Vendor"), "Header should contain 'Vendor'");
+        assert!(output.contains("Cisco Systems, Inc."), "Row should contain vendor name");
+    }
+
+    #[test]
+    fn format_hosts_table_missing_vendor_shows_dash() {
+        let hosts = vec![make_host("192.168.1.2", None, None, DiscoveryMethod::Tcp, None)];
+        let output = format_hosts_table(&hosts);
+        assert!(output.contains("Vendor"), "Header should contain 'Vendor'");
+        assert!(output.contains("192.168.1.2"), "Row should contain IP");
     }
 }
