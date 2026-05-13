@@ -78,7 +78,10 @@ pub async fn run() -> Result<(), Error> {
             let hosts = scanner.discover_network(&network, &caps).await?;
 
             // Run port scanning on discovered hosts
-            let hosts = scanner.scan_ports(hosts).await;
+            let mut hosts = scanner.scan_ports(hosts).await;
+
+            // Enrich with OUI/vendor data
+            crate::scanner::enrich_oui(&crate::scanner::OUI_DB, &mut hosts);
 
             // Output results
             if args.json {
