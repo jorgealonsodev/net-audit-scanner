@@ -536,6 +536,7 @@ pub fn merge_results(ping_results: &[PingResult], arp_entries: &[ArpEntry]) -> V
                 rtt_ms,
                 vendor: None,
                 os_hint: ttl_hint,
+                security_findings: vec![],
             }
         })
         .collect();
@@ -837,6 +838,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             rtt_ms: Some(5),
             vendor: None,
             os_hint: Some("Linux/macOS".into()), // TTL hint
+            security_findings: vec![],
         };
         apply_banner_hints_to_host(&mut host);
         assert_eq!(host.os_hint, Some("Ubuntu Linux".into()));
@@ -860,6 +862,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         apply_banner_hints_to_host(&mut host);
         assert_eq!(host.os_hint, Some("Windows".into()));
@@ -883,6 +886,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             rtt_ms: Some(5),
             vendor: None,
             os_hint: Some("Linux/macOS".into()),
+            security_findings: vec![],
         };
         apply_banner_hints_to_host(&mut host);
         // Banner didn't match any OS pattern, TTL hint preserved
@@ -900,6 +904,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             rtt_ms: Some(5),
             vendor: None,
             os_hint: Some("Linux/macOS".into()),
+            security_findings: vec![],
         };
         apply_banner_hints_to_host(&mut host);
         assert_eq!(host.os_hint, Some("Linux/macOS".into()));
@@ -933,6 +938,7 @@ not-an-ip   0x1         0x2         aa:bb:cc:dd:ee:02     *        eth0";
             rtt_ms: Some(5),
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         apply_banner_hints_to_host(&mut host);
         // First matching banner (Debian) wins

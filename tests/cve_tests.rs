@@ -39,6 +39,7 @@ fn make_host_with_banner(ip: &str, port: u16, banner: &str, service: ServiceType
         rtt_ms: None,
         vendor: None,
         os_hint: None,
+        security_findings: vec![],
     }
 }
 

@@ -1,6 +1,7 @@
 //! Data models for network discovery: hosts, methods, and capability detection.
 
 use crate::cve::models::CveMatch;
+use crate::security::SecurityFinding;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
@@ -66,6 +67,9 @@ pub struct DiscoveredHost {
     /// OS hint inferred from TTL or service banners, if available.
     #[serde(default)]
     pub os_hint: Option<String>,
+    /// Security findings from credential and protocol checks.
+    #[serde(default)]
+    pub security_findings: Vec<SecurityFinding>,
 }
 
 /// The method by which a host was discovered.
@@ -182,6 +186,7 @@ mod tests {
             rtt_ms: Some(5),
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("192.168.1.10"));
@@ -271,6 +276,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let debug = format!("{:?}", host);
         assert!(debug.contains("127.0.0.1"));
@@ -295,6 +301,7 @@ mod tests {
             rtt_ms: Some(3),
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let cloned = host.clone();
         assert_eq!(host.ip, cloned.ip);
@@ -322,6 +329,7 @@ mod tests {
             rtt_ms: None,
             vendor: Some("Apple, Inc.".into()),
             os_hint: None,
+            security_findings: vec![],
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("Apple, Inc."));
@@ -409,6 +417,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("\"os_hint\":null"));
@@ -425,6 +434,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: Some("Linux".into()),
+            security_findings: vec![],
         };
         let json = serde_json::to_string(&host).unwrap();
         assert!(json.contains("\"os_hint\":\"Linux\""));
@@ -499,6 +509,7 @@ mod tests {
                 rtt_ms: None,
                 vendor: None,
                 os_hint: None,
+                security_findings: vec![],
             }],
         };
         let json = serde_json::to_string(&record).unwrap();
@@ -553,6 +564,7 @@ mod tests {
                     rtt_ms: Some(2),
                     vendor: None,
                     os_hint: None,
+                    security_findings: vec![],
                 },
                 DiscoveredHost {
                     ip: "172.16.0.2".parse().unwrap(),
@@ -563,6 +575,7 @@ mod tests {
                     rtt_ms: None,
                     vendor: Some("Unknown".into()),
                     os_hint: Some("Linux".into()),
+                    security_findings: vec![],
                 },
             ],
         };

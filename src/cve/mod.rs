@@ -106,6 +106,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }
     }
 
@@ -194,6 +195,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }];
 
         enrich_cve(&mut hosts, &cache, &client, false).await;
@@ -344,6 +346,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }];
 
         enrich_cve(&mut hosts, &cache, &client, false).await;

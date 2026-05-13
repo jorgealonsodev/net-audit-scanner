@@ -284,6 +284,7 @@ mod tests {
             rtt_ms: Some(5),
             vendor: Some("Apple, Inc.".into()),
             os_hint: None,
+            security_findings: vec![],
         };
         let report = ReportHost::from(&host);
         assert_eq!(report.ip, "192.168.1.10");
@@ -310,6 +311,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let report = ReportHost::from(&host);
         // Same CVE on both ports → deduplicated to 1
@@ -329,6 +331,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let report = ReportHost::from(&host);
         assert!(report.cves.is_empty());
@@ -347,6 +350,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let report = ReportHost::from(&host);
         assert_eq!(report.mac, Some("00:11:22:33:44:55".into()));
@@ -363,6 +367,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let report = ReportHost::from(&host);
         assert!(report.mac.is_none());
@@ -383,6 +388,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let report = ReportHost::from(&host);
         assert_eq!(report.insecure_ports, 2);
@@ -404,6 +410,7 @@ mod tests {
             rtt_ms: Some(10),
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         };
         let report = ReportHost::from(&host);
         let json = serde_json::to_string(&report).unwrap();
@@ -428,6 +435,7 @@ mod tests {
                 rtt_ms: None,
                 vendor: None,
                 os_hint: None,
+                security_findings: vec![],
             },
             DiscoveredHost {
                 ip: "192.168.1.11".parse().unwrap(),
@@ -438,6 +446,7 @@ mod tests {
                 rtt_ms: None,
                 vendor: None,
                 os_hint: None,
+                security_findings: vec![],
             },
         ];
         let ctx = ReportContext::from(&hosts);
@@ -469,6 +478,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }];
         let ctx = ReportContext::from(&hosts);
         let json = serde_json::to_string(&ctx).unwrap();

@@ -20,6 +20,9 @@ pub use oui::{OUI_DB, OuiDb, cache_path, enrich_oui, get_oui_db};
 pub use ports::{IOT_CRITICAL_PORTS, PORT_LIST_TOP_100, PORT_LIST_TOP_1000, resolve_port_list};
 pub use services::{build_open_port, classify_service, grab_banner, is_insecure};
 
+// Re-export security types for use in models
+pub use crate::security::SecurityFinding;
+
 /// Returns the module path for reachability checks.
 pub fn module_path() -> &'static str {
     "scanner"

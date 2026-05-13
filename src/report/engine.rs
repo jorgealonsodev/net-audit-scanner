@@ -95,6 +95,7 @@ mod tests {
             rtt_ms: None,
             vendor: Some("Test Vendor".into()),
             os_hint: None,
+            security_findings: vec![],
         }
     }
 

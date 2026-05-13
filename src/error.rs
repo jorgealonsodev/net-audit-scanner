@@ -35,6 +35,9 @@ pub enum Error {
 
     #[error("Persist error: {0}")]
     Persist(String),
+
+    #[error("Security check error: {0}")]
+    Security(String),
 }
 
 #[cfg(test)]

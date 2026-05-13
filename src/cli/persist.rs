@@ -166,6 +166,7 @@ mod tests {
             rtt_ms: Some(5),
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }]
     }
 

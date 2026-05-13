@@ -204,6 +204,7 @@ mod tests {
             rtt_ms,
             vendor: vendor.map(String::from),
             os_hint: None,
+            security_findings: vec![],
         }
     }
 
@@ -347,6 +348,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }];
 
         let output = format_hosts_table(&hosts);
@@ -389,6 +391,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }];
 
         let output = format_hosts_json(&hosts);

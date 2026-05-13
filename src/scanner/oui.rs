@@ -337,6 +337,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }];
         enrich_oui(&db, &mut hosts);
         assert_eq!(hosts[0].vendor, Some("Cisco Systems, Inc.".into()));
@@ -354,6 +355,7 @@ mod tests {
             rtt_ms: None,
             vendor: None,
             os_hint: None,
+            security_findings: vec![],
         }];
         enrich_oui(&db, &mut hosts);
         assert!(hosts[0].vendor.is_none());
@@ -400,6 +402,7 @@ mod tests {
                 rtt_ms: None,
                 vendor: None,
                 os_hint: None,
+                security_findings: vec![],
             },
             DiscoveredHost {
                 ip: "192.168.1.2".parse::<IpAddr>().unwrap(),
@@ -410,6 +413,7 @@ mod tests {
                 rtt_ms: None,
                 vendor: None,
                 os_hint: None,
+                security_findings: vec![],
             },
         ];
         enrich_oui(&db, &mut hosts);
