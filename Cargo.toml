@@ -2,7 +2,7 @@
 name = "netascan"
 version = "0.2.0"
 edition = "2024"
-description = "Network security audit CLI tool"
+description = "Net Audit Scanner"
 license = "MIT"
 
 [[bin]]
@@ -50,9 +50,9 @@ maintainer = "Jorge Alonso <jorge@jorgealonsodev.com>"
 copyright = "2026, Jorge Alonso"
 license-file = ["LICENSE", "0"]
 extended-description = """\
-netascan is a fast network security audit CLI that discovers devices on your LAN,
-fingerprints services, checks for known CVEs, tests default credentials, and
-generates HTML/JSON reports — all from a single command."""
+Net Audit Scanner — discovers devices on your LAN, fingerprints services,
+enriches with SNMP/mDNS/vendor data, checks for known CVEs, tests default
+credentials, and generates HTML/JSON reports — all from a single command."""
 depends = "$auto"
 section = "net"
 priority = "optional"
