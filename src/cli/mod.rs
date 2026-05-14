@@ -2,12 +2,15 @@ mod persist;
 mod report;
 mod scan;
 pub mod serve;
+mod setup;
 mod update;
 
 use clap::{Parser, Subcommand};
 use ipnetwork::IpNetwork;
 use std::path::PathBuf;
 
+use crate::config::Config;
+use crate::enrichment::{EnrichmentConfig, enrich_devices};
 use crate::error::Error;
 use crate::scanner::{Scanner, detect, detect_local_network};
 use scan::{format_hosts_json, format_hosts_table};
@@ -39,6 +42,11 @@ pub async fn run() -> Result<(), Error> {
 
     match cli.command {
         Commands::Scan(args) => {
+            let app_config = Config::load().unwrap_or_default();
+
+            // First-run: prompt for missing API keys (non-blocking, TTY-only).
+            setup::prompt_missing_keys_if_first_run(&app_config);
+
             // Resolve network: "auto" or explicit CIDR
             let network = resolve_network(&args.network)?;
 
@@ -48,7 +56,7 @@ pub async fn run() -> Result<(), Error> {
             } else if args.full {
                 "full".into()
             } else {
-                crate::config::ScanConfig::default().port_range
+                app_config.scan.port_range.clone()
             };
 
             // Warn if --full is used on a large network
@@ -102,7 +110,7 @@ pub async fn run() -> Result<(), Error> {
             eprintln!("      Found {} open port(s) across {} host(s)", open_ports, hosts.len());
 
             // Enrich with OUI/vendor data
-            eprintln!("[3/5] Looking up vendor info (OUI) ...");
+            eprintln!("[3/5] Enriching device info (OUI + SNMP + mDNS) ...");
             let oui_db = if args.no_update {
                 crate::scanner::OuiDb::from_embedded()
             } else {
@@ -115,6 +123,23 @@ pub async fn run() -> Result<(), Error> {
                 .count();
             eprintln!("      Identified vendor for {}/{} host(s)", with_vendor, hosts.len());
 
+            let enrichment_config = build_enrichment_config(&app_config, &args);
+            enrich_devices(&mut hosts, &enrichment_config).await;
+
+            let vendor_count = hosts.iter().filter(|host| host.vendor.is_some()).count();
+            let hostname_count = hosts
+                .iter()
+                .filter(|host| host.hostname.as_deref().is_some_and(|value| !value.trim().is_empty()))
+                .count();
+            let model_count = hosts
+                .iter()
+                .filter(|host| host.device_model.as_deref().is_some_and(|value| !value.trim().is_empty()))
+                .count();
+            eprintln!(
+                "[3/5] Enrichment complete: vendors found {}, hostnames resolved {}, models identified {}",
+                vendor_count, hostname_count, model_count
+            );
+
             // Enrich with CVE data (unless skipped)
             if !args.no_cve {
                 eprintln!("[4/5] Checking CVEs (this may take a moment) ...");
@@ -124,10 +149,8 @@ pub async fn run() -> Result<(), Error> {
                 }
 
                 let api_key = std::env::var("NVD_API_KEY").ok().or_else(|| {
-                    crate::config::Config::load().ok().and_then(|cfg| {
-                        let key = cfg.cve.nvd_api_key;
-                        if key.is_empty() { None } else { Some(key) }
-                    })
+                    let key = app_config.cve.nvd_api_key.clone();
+                    if key.is_empty() { None } else { Some(key) }
                 });
 
                 if api_key.is_none() {
@@ -151,9 +174,7 @@ pub async fn run() -> Result<(), Error> {
 
             // Run default credential checks (non-fatal)
             eprintln!("[5/5] Testing default credentials ...");
-            let creds_config = crate::config::Config::load()
-                .map(|cfg| cfg.credentials_check)
-                .unwrap_or_default();
+            let creds_config = app_config.credentials_check;
             if let Err(e) = crate::security::check_default_credentials(&mut hosts, &creds_config).await {
                 eprintln!("[!] Credential check error: {}", e);
             }
@@ -194,6 +215,18 @@ pub async fn run() -> Result<(), Error> {
     Ok(())
 }
 
+fn build_enrichment_config(config: &Config, args: &scan::ScanArgs) -> EnrichmentConfig {
+    EnrichmentConfig {
+        snmp_enabled: config.enrichment.snmp_enabled,
+        mdns_enabled: config.enrichment.mdns_enabled,
+        mac_api_enabled: config.enrichment.mac_api_enabled || args.mac_api,
+        snmp_timeout_ms: config.enrichment.snmp_timeout_ms,
+        mdns_timeout_ms: config.enrichment.mdns_timeout_ms,
+        snmp_community: config.enrichment.snmp_community.clone(),
+        mac_vendors_api_key: config.enrichment.mac_vendors_api_key.clone(),
+    }
+}
+
 /// Resolve the cache directory path.
 ///
 /// When running under sudo, prefers the original user's cache dir via SUDO_USER
@@ -229,8 +262,10 @@ fn resolve_network(network: &str) -> Result<IpNetwork, Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, Commands};
+    use super::{Cli, Commands, build_enrichment_config};
+    use crate::cli::scan;
     use clap::{CommandFactory, Parser};
+    use crate::config::Config;
 
     #[test]
     fn verify_cli() {
@@ -279,5 +314,40 @@ mod tests {
         } else {
             panic!("Expected Scan command");
         }
+    }
+
+    #[test]
+    fn parse_scan_with_mac_api_flag() {
+        let cli = Cli::parse_from(["netascan", "scan", "--mac-api"]);
+        if let Commands::Scan(args) = cli.command {
+            assert!(args.mac_api);
+        } else {
+            panic!("Expected Scan command");
+        }
+    }
+
+    #[test]
+    fn build_enrichment_config_enables_mac_api_from_cli() {
+        let args = scan::ScanArgs {
+            network: "auto".into(),
+            target: None,
+            concurrency: 512,
+            timeout_ms: 1500,
+            banner_timeout_ms: 500,
+            json: false,
+            no_cve: false,
+            full: false,
+            port_range: None,
+            report: "html".into(),
+            no_update: false,
+            mac_api: true,
+        };
+
+        let config = build_enrichment_config(&Config::default(), &args);
+
+        assert!(config.mac_api_enabled);
+        assert!(config.snmp_enabled);
+        assert!(config.mdns_enabled);
+        assert_eq!(config.snmp_community, "public");
     }
 }

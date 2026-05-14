@@ -48,6 +48,10 @@ pub struct ScanArgs {
     /// Skip cache and use embedded OUI database
     #[arg(long)]
     pub no_update: bool,
+
+    /// Use MacVendors API as a fallback when OUI lookup misses
+    #[arg(long)]
+    pub mac_api: bool,
 }
 
 /// Format discovered hosts as an aligned plain-text table.
