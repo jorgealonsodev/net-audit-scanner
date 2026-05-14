@@ -8,7 +8,7 @@ nav_order: 2
 
 ## Overview
 
-`netascan` is a fast network security auditing CLI that discovers devices on your LAN, fingerprints services, enriches results with SNMP/mDNS/vendor data, checks for known CVEs, tests for default credentials, and generates actionable reports — all from a single command.
+`netascan` is Net Audit Scanner — a fast CLI that discovers devices on your LAN, fingerprints services, enriches results with SNMP/mDNS/vendor data, checks for known CVEs, tests for default credentials, and generates actionable reports — all from a single command.
 
 Designed for system administrators and security engineers, it outputs results as an aligned terminal table, machine-readable JSON, or a rich standalone HTML report.
 
