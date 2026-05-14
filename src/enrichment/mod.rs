@@ -21,6 +21,8 @@ pub struct EnrichmentConfig {
     pub mdns_timeout_ms: u64,
     #[serde(default = "default_snmp_community")]
     pub snmp_community: String,
+    #[serde(default)]
+    pub mac_vendors_api_key: String,
 }
 
 impl Default for EnrichmentConfig {
@@ -32,6 +34,7 @@ impl Default for EnrichmentConfig {
             snmp_timeout_ms: 1000,
             mdns_timeout_ms: 2000,
             snmp_community: default_snmp_community(),
+            mac_vendors_api_key: String::new(),
         }
     }
 }

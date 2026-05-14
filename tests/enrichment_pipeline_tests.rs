@@ -28,6 +28,7 @@ async fn enrich_devices_with_all_sources_disabled_returns_hosts_unchanged() {
         snmp_timeout_ms: 1000,
         mdns_timeout_ms: 2000,
         snmp_community: "public".into(),
+        mac_vendors_api_key: String::new(),
     };
 
     enrich_devices(&mut hosts, &config).await;
