@@ -273,17 +273,16 @@ pub async fn check_default_credentials(
         return Ok(());
     }
 
-    let creds = creds_db::load_credentials().await;
-
     for host in hosts.iter_mut() {
         let ip = host.ip;
+        let host_creds = creds_db::load_credentials_for_vendor(host.vendor.as_deref()).await;
         let mut findings = Vec::new();
 
         for open_port in &host.open_ports {
             let finding = match open_port.service {
-                crate::scanner::models::ServiceType::Http => check_http_credentials_with(ip, open_port.port, &creds).await,
-                crate::scanner::models::ServiceType::Ftp => check_ftp_credentials_with(ip, open_port.port, &creds).await,
-                crate::scanner::models::ServiceType::Telnet => check_telnet_credentials_with(ip, open_port.port, &creds).await,
+                crate::scanner::models::ServiceType::Http => check_http_credentials_with(ip, open_port.port, &host_creds).await,
+                crate::scanner::models::ServiceType::Ftp => check_ftp_credentials_with(ip, open_port.port, &host_creds).await,
+                crate::scanner::models::ServiceType::Telnet => check_telnet_credentials_with(ip, open_port.port, &host_creds).await,
                 _ => None,
             };
 
