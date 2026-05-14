@@ -10,7 +10,9 @@ use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
 use crate::error::Error;
-use crate::fingerprint::{infer_os_from_banner, ttl_to_os_hint};
+use crate::fingerprint::infer_os_from_banner;
+#[cfg(target_os = "linux")]
+use crate::fingerprint::ttl_to_os_hint;
 use crate::scanner::models::{ArpEntry, Capabilities, DiscoveredHost, DiscoveryMethod, PingResult};
 use crate::scanner::ports::resolve_port_list;
 use crate::scanner::services::{build_open_port, grab_banner};
@@ -336,6 +338,7 @@ pub async fn tcp_sweep(ips: &[IpAddr], ports: &[u16], semaphore: &std::sync::Arc
 ///
 /// The packet starts at the IP header. TTL is at byte offset 8 in a standard
 /// IPv4 header (IHL=5). Returns None if the buffer is too short.
+#[cfg(target_os = "linux")]
 fn extract_ttl_from_bytes(packet: &[u8]) -> Option<u8> {
     if packet.len() < 20 {
         return None;

@@ -167,10 +167,7 @@ fn report_invalid_format_exits_with_error() {
 fn report_last_loads_most_recent_scan() {
     // --last is now implemented: loads the most recent scan from cache dir.
     // In test environment no scans exist, so it should fail gracefully.
-    let result = cli()
-        .arg("report")
-        .arg("--last")
-        .assert();
+    let result = cli().arg("report").arg("--last").assert();
     // --last without a saved scan should still exit gracefully (success or controlled failure)
     let output = String::from_utf8_lossy(&result.get_output().stderr);
     assert!(
