@@ -107,7 +107,9 @@ jobs:
           VERSION=${GITHUB_REF_NAME}
           DEB=$(ls target/debian/*.deb | head -1)
           DEST="target/debian/netascan-${VERSION}-amd64.deb"
-          mv "$DEB" "$DEST"
+          if [ "$DEB" != "$DEST" ]; then
+            mv "$DEB" "$DEST"
+          fi
           echo "DEB_PATH=$DEST" >> $GITHUB_ENV
           echo "DEB_NAME=netascan-${VERSION}-amd64.deb" >> $GITHUB_ENV
 
