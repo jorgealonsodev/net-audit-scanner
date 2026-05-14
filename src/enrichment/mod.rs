@@ -30,7 +30,7 @@ impl Default for EnrichmentConfig {
         Self {
             snmp_enabled: true,
             mdns_enabled: true,
-            mac_api_enabled: false,
+            mac_api_enabled: true,
             snmp_timeout_ms: 1000,
             mdns_timeout_ms: 2000,
             snmp_community: default_snmp_community(),
@@ -223,7 +223,7 @@ mod tests {
 
         assert!(config.snmp_enabled);
         assert!(config.mdns_enabled);
-        assert!(!config.mac_api_enabled);
+        assert!(config.mac_api_enabled);
         assert_eq!(config.snmp_timeout_ms, 1000);
         assert_eq!(config.mdns_timeout_ms, 2000);
         assert_eq!(config.snmp_community, "public");

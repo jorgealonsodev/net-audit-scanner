@@ -49,9 +49,9 @@ pub struct ScanArgs {
     #[arg(long)]
     pub no_update: bool,
 
-    /// Use MacVendors API as a fallback when OUI lookup misses
+    /// Skip MacVendors API lookup (enabled by default, no key needed for ≤1000 req/day)
     #[arg(long)]
-    pub mac_api: bool,
+    pub no_mac_api: bool,
 }
 
 /// Format discovered hosts as an aligned plain-text table.
