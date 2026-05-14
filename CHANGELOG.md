@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] — 2026-05-15
+
+### Added
+- **SecLists credentials database** — ~2800 real-world default credential pairs (routers, cameras, switches) downloaded from SecLists on first scan; refreshed via `netascan update`.
+- **Vendor-filtered credential checks** — each host is tested only against credentials matching its OUI vendor (normalized substring match); falls back to full list if vendor is unknown or fewer than 10 vendor-specific pairs exist.
+
+### Fixed
+- **CVE cache not created on first run** — SQLite database now uses `create_if_missing(true)`; fixes `unable to open database file (code: 14)` error.
+- **Alt HTTP/Telnet ports not classified** — ports 8080, 8008, 8888, 8000 → `Http`; 8443, 4443 → `Https`; 2323 → `Telnet`. Router admin interfaces on non-standard ports are now tested for credentials.
+
+---
+
 ## [0.2.0] — 2026-05-14
 
 ### Added
