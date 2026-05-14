@@ -157,10 +157,11 @@ pub async fn run() -> Result<(), Error> {
                 });
 
                 if api_key.is_none() {
-                    eprintln!("      (tip: set NVD_API_KEY env var to avoid rate limits)");
+                    eprintln!("      (tip: add NVD_API_KEY to ~/.netascan/config.toml to avoid rate limits)");
                 }
 
-                match crate::cve::cache::CveCache::open(cache_path.to_str().unwrap_or("cve.db")).await {
+                let db_uri = format!("sqlite:{}", cache_path.to_str().unwrap_or("cve.db"));
+                match crate::cve::cache::CveCache::open(&db_uri).await {
                     Ok(cache) => {
                         let client = crate::cve::client::NvdClient::new(api_key);
                         crate::cve::enrich_cve(&mut hosts, &cache, &client, false).await;

@@ -6,7 +6,8 @@
 use crate::cve::models::CveMatch;
 use anyhow::Result;
 use sqlx::SqlitePool;
-use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Default cache TTL in seconds (24 hours).
@@ -24,7 +25,9 @@ impl CveCache {
     ///
     /// The schema is created automatically if it does not exist.
     pub async fn open(path: &str) -> Result<Self> {
-        let pool = SqlitePoolOptions::new().max_connections(2).connect(path).await?;
+        let opts = SqliteConnectOptions::from_str(path)?
+            .create_if_missing(true);
+        let pool = SqlitePoolOptions::new().max_connections(2).connect_with(opts).await?;
 
         let cache = Self {
             pool,
