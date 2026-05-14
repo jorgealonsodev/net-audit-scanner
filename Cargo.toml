@@ -13,6 +13,7 @@ path = "src/main.rs"
 tokio = { version = "1", features = ["full"] }
 pnet = "0.34"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+mdns-sd = "0.11"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite"] }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
@@ -32,7 +33,6 @@ anyhow = "1"
 regex = "1"
 include_dir = "0.7"
 libc = "0.2"
-mdns-sd = "0.11"
 
 [dev-dependencies]
 assert_cmd = "2"

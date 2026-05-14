@@ -40,25 +40,25 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: mDNS
 
-- [ ] 3.1 Create `src/enrichment/mdns.rs` — `mdns_query(ip, config) -> Option<MdnsResult>` with 2s window
-- [ ] 3.2 Implement passive listen + active PTR query (`_services._dns-sd._udp.local`)
-- [ ] 3.3 Parse PTR/A records → `hostname`; parse TXT `model=` → `device_model`
-- [ ] 3.4 Emit `tracing::warn!` at enrichment startup if Docker bridge network detected
-- [ ] 3.5 All mDNS errors absorbed: `tracing::debug!` only
+- [x] 3.1 Create `src/enrichment/mdns.rs` — `mdns_query(ip, config) -> Option<MdnsResult>` with 2s window
+- [x] 3.2 Implement passive listen + active PTR query (`_services._dns-sd._udp.local`)
+- [x] 3.3 Parse PTR/A records → `hostname`; parse TXT `model=` → `device_model`
+- [x] 3.4 Emit `tracing::warn!` at enrichment startup if Docker bridge network detected
+- [x] 3.5 All mDNS errors absorbed: `tracing::debug!` only
 
 ## Phase 4: MacVendors API
 
-- [ ] 4.1 Create `src/enrichment/mac_vendor.rs` — `lookup(mac) -> Option<String>` using existing `reqwest`
-- [ ] 4.2 Implement sequential rate limiter: `sleep(Duration::from_secs(1))` between calls
-- [ ] 4.3 Only call API when `mac_api_enabled` AND `host.vendor.is_none()`
-- [ ] 4.4 HTTP 4xx/5xx absorbed: `tracing::debug!` only
+- [x] 4.1 Create `src/enrichment/mac_vendor.rs` — `lookup(mac) -> Option<String>` using existing `reqwest`
+- [x] 4.2 Implement sequential rate limiter: `sleep(Duration::from_secs(1))` between calls
+- [x] 4.3 Only call API when `mac_api_enabled` AND `host.vendor.is_none()`
+- [x] 4.4 HTTP 4xx/5xx absorbed: `tracing::debug!` only
 
 ## Phase 5: Wiring & Integration
 
-- [ ] 5.1 Implement `enrich_devices` in `mod.rs`: `JoinSet` per host for SNMP+mDNS, then sequential MacVendors
-- [ ] 5.2 Add `--mac-api` flag to `clap` args in `src/cli/mod.rs`
-- [ ] 5.3 Build `EnrichmentConfig` from CLI args in `src/cli/mod.rs`
-- [ ] 5.4 Insert `[3/5] Enriching device info...` step in CLI pipeline
+- [x] 5.1 Implement `enrich_devices` in `mod.rs`: `JoinSet` per host for SNMP+mDNS, then sequential MacVendors
+- [x] 5.2 Add `--mac-api` flag to `clap` args in `src/cli/mod.rs`
+- [x] 5.3 Build `EnrichmentConfig` from CLI args in `src/cli/mod.rs`
+- [x] 5.4 Insert `[3/5] Enriching device info...` step in CLI pipeline
 
 ## Phase 6: Testing
 

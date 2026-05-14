@@ -145,6 +145,9 @@ pub struct ScanCliArgs {
     pub full: bool,
     /// Whether CVE lookup was skipped.
     pub no_cve: bool,
+    /// Whether MacVendors fallback was enabled.
+    #[serde(default)]
+    pub mac_api: bool,
 }
 
 /// A complete scan record persisted to disk after CVE enrichment.
@@ -514,6 +517,7 @@ mod tests {
             port_range: "top-1000".into(),
             full: false,
             no_cve: true,
+            mac_api: false,
         };
         let json = serde_json::to_string(&args).unwrap();
         assert!(json.contains("top-1000"));
@@ -523,11 +527,12 @@ mod tests {
 
     #[test]
     fn scan_cli_args_deserializes() {
-        let json = r#"{"port_range":"full","full":true,"no_cve":false}"#;
+        let json = r#"{"port_range":"full","full":true,"no_cve":false,"mac_api":true}"#;
         let args: ScanCliArgs = serde_json::from_str(json).unwrap();
         assert_eq!(args.port_range, "full");
         assert!(args.full);
         assert!(!args.no_cve);
+        assert!(args.mac_api);
     }
 
     #[test]
@@ -541,6 +546,7 @@ mod tests {
                 port_range: "top-1000".into(),
                 full: false,
                 no_cve: true,
+                mac_api: false,
             },
             host_count: 1,
             total_cves: 0,
@@ -596,6 +602,7 @@ mod tests {
                 port_range: "80-443".into(),
                 full: false,
                 no_cve: false,
+                mac_api: true,
             },
             host_count: 2,
             total_cves: 3,
@@ -648,6 +655,7 @@ mod tests {
                 port_range: "top-1000".into(),
                 full: false,
                 no_cve: true,
+                mac_api: false,
             },
             host_count: 0,
             total_cves: 0,

@@ -50,6 +50,7 @@ pub fn save_scan(hosts: &[DiscoveredHost], args: &ScanArgs, network: &str, start
             port_range,
             full: args.full,
             no_cve: args.no_cve,
+            mac_api: args.mac_api,
         },
         host_count: hosts.len(),
         total_cves,
@@ -181,6 +182,7 @@ mod tests {
             port_range: None,
             report: "html".into(),
             no_update: false,
+            mac_api: false,
         }
     }
 
@@ -199,6 +201,7 @@ mod tests {
                 port_range: "top-1000".into(),
                 full: false,
                 no_cve: true,
+                mac_api: false,
             },
             host_count: hosts.len(),
             total_cves: 0,
