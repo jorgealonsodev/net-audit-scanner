@@ -30,12 +30,6 @@ const KEY_PROMPTS: &[KeyPrompt] = &[
         benefit: "raises CVE rate limit from 5 to 50 req/30s (faster CVE lookups)",
         url: "https://nvd.nist.gov/developers/request-an-api-key",
     },
-    KeyPrompt {
-        env_var: "MAC_VENDORS_API_KEY",
-        label: "MacVendors API key",
-        benefit: "enables MAC address vendor lookup for device identification",
-        url: "https://macvendors.com/api",
-    },
 ];
 
 /// Check whether any API keys are missing and, if so, prompt the user once.
@@ -114,7 +108,6 @@ fn is_tty() -> bool {
 fn config_key_is_empty(config: &Config, env_var: &str) -> bool {
     match env_var {
         "NVD_API_KEY" => config.cve.nvd_api_key.is_empty(),
-        "MAC_VENDORS_API_KEY" => config.enrichment.mac_vendors_api_key.is_empty(),
         _ => true,
     }
 }
@@ -217,7 +210,9 @@ custom_list = ""
 [enrichment]
 snmp_enabled = true
 mdns_enabled = true
-mac_api_enabled = false
+# MacVendors API is enabled by default — no key needed for up to 1000 req/day.
+# Set mac_vendors_api_key for higher rate limits (paid plans at https://macvendors.com/api).
+mac_api_enabled = true
 snmp_timeout_ms = 1000
 mdns_timeout_ms = 2000
 snmp_community = "public"

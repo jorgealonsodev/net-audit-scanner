@@ -219,7 +219,7 @@ fn build_enrichment_config(config: &Config, args: &scan::ScanArgs) -> Enrichment
     EnrichmentConfig {
         snmp_enabled: config.enrichment.snmp_enabled,
         mdns_enabled: config.enrichment.mdns_enabled,
-        mac_api_enabled: config.enrichment.mac_api_enabled || args.mac_api,
+        mac_api_enabled: config.enrichment.mac_api_enabled && !args.no_mac_api,
         snmp_timeout_ms: config.enrichment.snmp_timeout_ms,
         mdns_timeout_ms: config.enrichment.mdns_timeout_ms,
         snmp_community: config.enrichment.snmp_community.clone(),
@@ -318,9 +318,9 @@ mod tests {
 
     #[test]
     fn parse_scan_with_mac_api_flag() {
-        let cli = Cli::parse_from(["netascan", "scan", "--mac-api"]);
+        let cli = Cli::parse_from(["netascan", "scan", "--no-mac-api"]);
         if let Commands::Scan(args) = cli.command {
-            assert!(args.mac_api);
+            assert!(args.no_mac_api);
         } else {
             panic!("Expected Scan command");
         }
@@ -340,7 +340,7 @@ mod tests {
             port_range: None,
             report: "html".into(),
             no_update: false,
-            mac_api: true,
+            no_mac_api: false,
         };
 
         let config = build_enrichment_config(&Config::default(), &args);
@@ -349,5 +349,27 @@ mod tests {
         assert!(config.snmp_enabled);
         assert!(config.mdns_enabled);
         assert_eq!(config.snmp_community, "public");
+    }
+
+    #[test]
+    fn build_enrichment_config_disables_mac_api_with_flag() {
+        let args = scan::ScanArgs {
+            network: "auto".into(),
+            target: None,
+            concurrency: 512,
+            timeout_ms: 1500,
+            banner_timeout_ms: 500,
+            json: false,
+            no_cve: false,
+            full: false,
+            port_range: None,
+            report: "html".into(),
+            no_update: false,
+            no_mac_api: true,
+        };
+
+        let config = build_enrichment_config(&Config::default(), &args);
+
+        assert!(!config.mac_api_enabled);
     }
 }

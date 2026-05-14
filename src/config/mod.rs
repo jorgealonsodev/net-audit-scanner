@@ -136,7 +136,7 @@ mod tests {
         let cfg = Config::default();
         assert!(cfg.enrichment.snmp_enabled);
         assert!(cfg.enrichment.mdns_enabled);
-        assert!(!cfg.enrichment.mac_api_enabled);
+        assert!(cfg.enrichment.mac_api_enabled);
         assert_eq!(cfg.enrichment.snmp_timeout_ms, 1000);
         assert_eq!(cfg.enrichment.mdns_timeout_ms, 2000);
         assert_eq!(cfg.enrichment.snmp_community, "public");
