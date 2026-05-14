@@ -22,6 +22,7 @@ tera = "1"
 axum = { version = "0.7", features = ["multipart"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-log = "0.2"
 thiserror = "1"
 ipnetwork = "0.20"
 macaddr = { version = "1", features = ["serde"] }

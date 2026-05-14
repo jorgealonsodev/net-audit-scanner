@@ -47,6 +47,9 @@ pub async fn run() -> Result<(), Error> {
             // First-run: prompt for missing API keys (non-blocking, TTY-only).
             setup::prompt_missing_keys_if_first_run(&app_config);
 
+            // Reload config in case setup just saved new keys.
+            let app_config = Config::load().unwrap_or_default();
+
             // Resolve network: "auto" or explicit CIDR
             let network = resolve_network(&args.network)?;
 

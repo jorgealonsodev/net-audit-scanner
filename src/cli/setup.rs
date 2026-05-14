@@ -182,7 +182,16 @@ fn env_var_to_section(env_var: &str) -> &'static str {
 }
 
 fn config_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_default();
+    let home = if let Ok(sudo_user) = std::env::var("SUDO_USER") {
+        let candidate = PathBuf::from("/home").join(&sudo_user);
+        if candidate.exists() {
+            candidate.to_string_lossy().to_string()
+        } else {
+            std::env::var("HOME").unwrap_or_default()
+        }
+    } else {
+        std::env::var("HOME").unwrap_or_default()
+    };
     PathBuf::from(home).join(".netascan").join("config.toml")
 }
 
