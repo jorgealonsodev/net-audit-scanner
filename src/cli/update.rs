@@ -67,6 +67,19 @@ pub async fn handle_update(args: &UpdateArgs) -> Result<(), Error> {
     println!("Downloaded {} OUI entries from {}", entry_count, url);
     println!("Cached to {}", cache_path.display());
 
+    // Update default credentials database
+    print!("Updating default credentials database... ");
+    match crate::security::creds_db::download_creds_db().await {
+        Ok(count) => {
+            let creds_path = crate::security::creds_db::creds_cache_path();
+            println!("Downloaded {} credential pairs", count);
+            println!("Cached to {}", creds_path.display());
+        }
+        Err(e) => {
+            eprintln!("Warning: could not update credentials db: {}", e);
+        }
+    }
+
     Ok(())
 }
 

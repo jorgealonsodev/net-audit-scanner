@@ -156,7 +156,7 @@ netascan serve --port 8080 --bind 0.0.0.0
 
 ### update
 
-Refreshes the OUI database used to map MAC addresses to vendor names.
+Refreshes the OUI database (MAC → vendor) **and** the default credentials database.
 
 ```bash
 netascan update
@@ -166,6 +166,10 @@ netascan update --source https://your-mirror.example.com/manuf
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--source` | Wireshark Manuf URL | Custom URL for the `manuf` database. |
+
+Downloads two files:
+- **OUI database** — `~/.cache/netascan/manuf` (Wireshark source, ~37k entries)
+- **Default credentials** — `~/.cache/netascan/default-creds.csv` (SecLists, ~2800 pairs)
 
 ---
 
@@ -273,11 +277,18 @@ mdns_timeout_ms   = 2000
 
 ## Security Checks
 
-`netascan` tests discovered services against a built-in list of default credentials:
+`netascan` tests discovered services against a credentials database sourced from [SecLists](https://github.com/danielmiessler/SecLists) (~2800 real-world default credential pairs from routers, cameras, switches, and other devices).
 
-- **HTTP Basic Auth** — common `admin:admin`, `admin:password` combinations
-- **FTP** — anonymous login + default credentials
-- **Telnet** — default factory logins
+**How it works:**
+- On first scan, the database is downloaded automatically to `~/.cache/netascan/default-creds.csv`.
+- On subsequent scans, the cached file is used — no network request needed.
+- Run `netascan update` to refresh to the latest version.
+- If the download fails and no cache exists, falls back to a built-in minimal list of 6 common pairs.
+
+**Protocols tested:**
+- **HTTP Basic Auth** — tests all credential pairs against the service
+- **FTP** — USER/PASS sequence, detects `230 Login successful`
+- **Telnet** — login prompt detection, shell prompt as success indicator
 
 Findings are attached to the host as `SecurityFinding` objects and surfaced in both the table and HTML report with a `CRITICAL` label.
 

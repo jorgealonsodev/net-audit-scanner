@@ -141,7 +141,7 @@ netascan update --source https://your-mirror.example.com/manuf
         ↓
 [4/5] CVE enrichment (NVD API, cached in ~/.cache/netascan/cve.db)
         ↓
-[5/5] test default credentials (HTTP Basic, FTP, Telnet)
+[5/5] test default credentials (HTTP Basic, FTP, Telnet — SecLists ~2800 pairs, auto-downloaded)
         ↓
       persist to ~/.cache/netascan/scans/
         ↓
@@ -176,6 +176,8 @@ open_browser       = false
 [credentials_check]
 enabled            = true
 custom_list        = ""          # path to a custom credentials file
+                                 # default db: SecLists ~2800 pairs, auto-downloaded to
+                                 # ~/.cache/netascan/default-creds.csv on first scan
 
 [enrichment]
 snmp_enabled       = true

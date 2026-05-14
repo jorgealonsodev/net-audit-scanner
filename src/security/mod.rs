@@ -1,5 +1,7 @@
 //! Security checks module — default credential testing, TLS verification, protocol analysis.
 
+pub mod creds_db;
+
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
@@ -38,12 +40,17 @@ pub const DEFAULT_CREDS: &[(&str, &str)] = &[
 /// Sends GET requests with Basic Auth for each credential pair.
 /// Returns a finding if any pair succeeds (2xx response).
 pub async fn check_http_credentials(ip: IpAddr, port: u16) -> Option<SecurityFinding> {
+    let creds = creds_db::load_credentials().await;
+    check_http_credentials_with(ip, port, &creds).await
+}
+
+async fn check_http_credentials_with(ip: IpAddr, port: u16, creds: &[(String, String)]) -> Option<SecurityFinding> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(3))
         .build()
         .ok()?;
 
-    for (username, password) in DEFAULT_CREDS {
+    for (username, password) in creds {
         let url = format!("http://{}:{}/", ip, port);
         let resp = client
             .get(&url)
@@ -72,6 +79,11 @@ pub async fn check_http_credentials(ip: IpAddr, port: u16) -> Option<SecurityFin
 /// Uses raw TCP with FTP protocol commands (USER/PASS).
 /// Returns a finding if any pair succeeds (230 response).
 pub async fn check_ftp_credentials(ip: IpAddr, port: u16) -> Option<SecurityFinding> {
+    let creds = creds_db::load_credentials().await;
+    check_ftp_credentials_with(ip, port, &creds).await
+}
+
+async fn check_ftp_credentials_with(ip: IpAddr, port: u16, creds: &[(String, String)]) -> Option<SecurityFinding> {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::net::TcpStream;
     use tokio::time::timeout;
@@ -98,7 +110,7 @@ pub async fn check_ftp_credentials(ip: IpAddr, port: u16) -> Option<SecurityFind
         return None;
     }
 
-    for (username, password) in DEFAULT_CREDS {
+    for (username, password) in creds {
         // Send USER command
         if writer
             .write_all(format!("USER {}\r\n", username).as_bytes())
@@ -171,6 +183,11 @@ pub async fn check_ftp_credentials(ip: IpAddr, port: u16) -> Option<SecurityFind
 /// Uses raw TCP with prompt detection heuristics.
 /// Returns a finding if any pair succeeds (shell prompt detected).
 pub async fn check_telnet_credentials(ip: IpAddr, port: u16) -> Option<SecurityFinding> {
+    let creds = creds_db::load_credentials().await;
+    check_telnet_credentials_with(ip, port, &creds).await
+}
+
+async fn check_telnet_credentials_with(ip: IpAddr, port: u16, creds: &[(String, String)]) -> Option<SecurityFinding> {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::net::TcpStream;
     use tokio::time::timeout;
@@ -197,13 +214,7 @@ pub async fn check_telnet_credentials(ip: IpAddr, port: u16) -> Option<SecurityF
         return None;
     }
 
-    let login_keywords = ["login", "user", "name", "account"];
-    let buf_lower = buf.to_lowercase();
-    if !login_keywords.iter().any(|kw| buf_lower.contains(kw)) {
-        // If no login prompt detected, try anyway (some servers don't send a prompt)
-    }
-
-    for (username, password) in DEFAULT_CREDS {
+    for (username, password) in creds {
         // Send username
         if writer.write_all(format!("{}\r\n", username).as_bytes()).await.is_err() {
             continue;
@@ -217,12 +228,6 @@ pub async fn check_telnet_credentials(ip: IpAddr, port: u16) -> Option<SecurityF
         };
         if n == 0 {
             continue;
-        }
-
-        let pass_keywords = ["password", "pass", "secret"];
-        let buf_lower = buf.to_lowercase();
-        if !pass_keywords.iter().any(|kw| buf_lower.contains(kw)) {
-            // Might have accepted username without password prompt — continue anyway
         }
 
         // Send password
@@ -240,7 +245,6 @@ pub async fn check_telnet_credentials(ip: IpAddr, port: u16) -> Option<SecurityF
             continue;
         }
 
-        // Check for success indicators: shell prompt markers
         let shell_indicators = ["$ ", "# ", "> "];
         if shell_indicators.iter().any(|ind| buf.contains(ind)) {
             return Some(SecurityFinding {
@@ -260,6 +264,7 @@ pub async fn check_telnet_credentials(ip: IpAddr, port: u16) -> Option<SecurityF
 /// Execute credential checks as a post-scan enrichment step.
 ///
 /// Gates on `config.enabled`, iterates hosts, and dispatches by service type.
+/// Loads credentials from the SecLists cache (auto-downloaded on first use).
 pub async fn check_default_credentials(
     hosts: &mut [crate::scanner::models::DiscoveredHost],
     config: &crate::config::CredentialsCheckConfig,
@@ -268,15 +273,17 @@ pub async fn check_default_credentials(
         return Ok(());
     }
 
+    let creds = creds_db::load_credentials().await;
+
     for host in hosts.iter_mut() {
         let ip = host.ip;
         let mut findings = Vec::new();
 
         for open_port in &host.open_ports {
             let finding = match open_port.service {
-                crate::scanner::models::ServiceType::Http => check_http_credentials(ip, open_port.port).await,
-                crate::scanner::models::ServiceType::Ftp => check_ftp_credentials(ip, open_port.port).await,
-                crate::scanner::models::ServiceType::Telnet => check_telnet_credentials(ip, open_port.port).await,
+                crate::scanner::models::ServiceType::Http => check_http_credentials_with(ip, open_port.port, &creds).await,
+                crate::scanner::models::ServiceType::Ftp => check_ftp_credentials_with(ip, open_port.port, &creds).await,
+                crate::scanner::models::ServiceType::Telnet => check_telnet_credentials_with(ip, open_port.port, &creds).await,
                 _ => None,
             };
 
@@ -439,68 +446,50 @@ mod tests {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         use tokio::net::TcpListener;
 
-        // Mock HTTP server that accepts admin:admin via Basic Auth
+        // Mock HTTP server: accepts many connections, returns 200 only for admin:admin
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
 
-        // Spawn mock server
         let server_handle = tokio::spawn(async move {
-            let (mut stream, _addr) = listener.accept().await.unwrap();
-
-            // Read request
-            let mut buf = [0u8; 4096];
-            let n = stream.read(&mut buf).await.unwrap();
-            let request = String::from_utf8_lossy(&buf[..n]);
-
-            // Check for Basic Auth header with admin:admin
-            // admin:admin base64 = YWRtaW46YWRtaW4=
-            if request.contains("YWRtaW46YWRtaW4=") {
-                let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
-                stream.write_all(response.as_bytes()).await.unwrap();
-            } else {
-                let response = "HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"test\"\r\nContent-Length: 12\r\n\r\nUnauthorized";
-                stream.write_all(response.as_bytes()).await.unwrap();
+            for _ in 0..20 {
+                match listener.accept().await {
+                    Ok((mut stream, _)) => {
+                        let mut buf = [0u8; 4096];
+                        let n = stream.read(&mut buf).await.unwrap_or(0);
+                        let request = String::from_utf8_lossy(&buf[..n]);
+                        // admin:admin base64 = YWRtaW46YWRtaW4=
+                        if request.contains("YWRtaW46YWRtaW4=") {
+                            let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK").await;
+                            break;
+                        } else {
+                            let _ = stream.write_all(b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"test\"\r\nContent-Length: 12\r\n\r\nUnauthorized").await;
+                        }
+                    }
+                    Err(_) => break,
+                }
             }
         });
 
-        let config = crate::config::CredentialsCheckConfig {
-            enabled: true,
-            custom_list: String::new(),
-        };
-        let mut hosts = vec![DiscoveredHost {
-            ip: "127.0.0.1".parse().unwrap(),
-            mac: None,
-            hostname: None,
-            method: DiscoveryMethod::Tcp,
-            open_ports: vec![OpenPort {
-                port,
-                service: ServiceType::Http,
-                banner: None,
-                protocol: Protocol::Tcp,
-                is_insecure: true,
-                cves: vec![],
-            }],
-            rtt_ms: None,
-            vendor: None,
-            device_model: None,
-            os_hint: None,
-            security_findings: vec![],
-        }];
+        // Use a small fixed list so the test is fast and deterministic
+        let test_creds = vec![
+            ("user".to_string(), "pass".to_string()),
+            ("admin".to_string(), "admin".to_string()),
+        ];
 
-        check_default_credentials(&mut hosts, &config).await.unwrap();
-        server_handle.await.unwrap();
+        let ip: std::net::IpAddr = "127.0.0.1".parse().unwrap();
+        let finding = check_http_credentials_with(ip, port, &test_creds).await;
+        server_handle.abort();
 
-        assert!(!hosts[0].security_findings.is_empty());
-        let finding = &hosts[0].security_findings[0];
-        assert_eq!(finding.check_type, "default_credential");
-        assert_eq!(finding.severity, Severity::High);
-        assert_eq!(finding.service, "http");
-        assert_eq!(finding.port, port);
+        assert!(finding.is_some());
+        let f = finding.unwrap();
+        assert_eq!(f.check_type, "default_credential");
+        assert_eq!(f.severity, Severity::High);
+        assert_eq!(f.service, "http");
+        assert_eq!(f.port, port);
     }
 
     #[tokio::test]
     async fn check_default_credentials_http_mock_rejects_all() {
-        use crate::scanner::models::{DiscoveredHost, DiscoveryMethod, OpenPort, Protocol, ServiceType};
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         use tokio::net::TcpListener;
 
@@ -509,45 +498,26 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
 
         let server_handle = tokio::spawn(async move {
-            // Accept up to 6 connections (one per credential pair)
-            for _ in 0..6 {
-                if let Ok((mut stream, _addr)) = listener.accept().await {
+            for _ in 0..10 {
+                if let Ok((mut stream, _)) = listener.accept().await {
                     let mut buf = [0u8; 4096];
                     let _ = stream.read(&mut buf).await;
-                    let response = "HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"test\"\r\nContent-Length: 12\r\n\r\nUnauthorized";
-                    let _ = stream.write_all(response.as_bytes()).await;
+                    let _ = stream.write_all(b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"test\"\r\nContent-Length: 12\r\n\r\nUnauthorized").await;
                 }
             }
         });
 
-        let config = crate::config::CredentialsCheckConfig {
-            enabled: true,
-            custom_list: String::new(),
-        };
-        let mut hosts = vec![DiscoveredHost {
-            ip: "127.0.0.1".parse().unwrap(),
-            mac: None,
-            hostname: None,
-            method: DiscoveryMethod::Tcp,
-            open_ports: vec![OpenPort {
-                port,
-                service: ServiceType::Http,
-                banner: None,
-                protocol: Protocol::Tcp,
-                is_insecure: true,
-                cves: vec![],
-            }],
-            rtt_ms: None,
-            vendor: None,
-            device_model: None,
-            os_hint: None,
-            security_findings: vec![],
-        }];
+        // Use a small fixed list so the test is fast and deterministic
+        let test_creds = vec![
+            ("admin".to_string(), "wrong".to_string()),
+            ("root".to_string(), "wrong".to_string()),
+        ];
 
-        check_default_credentials(&mut hosts, &config).await.unwrap();
-        let _ = server_handle.await;
+        let ip: std::net::IpAddr = "127.0.0.1".parse().unwrap();
+        let finding = check_http_credentials_with(ip, port, &test_creds).await;
+        server_handle.abort();
 
-        assert!(hosts[0].security_findings.is_empty());
+        assert!(finding.is_none());
     }
 
     #[tokio::test]
