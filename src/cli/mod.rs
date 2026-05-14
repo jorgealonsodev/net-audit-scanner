@@ -18,7 +18,7 @@ use update::{UpdateArgs, handle_update};
 
 /// netascan — Network security audit CLI
 #[derive(Parser)]
-#[command(name = "netascan", version = "0.1.0", about)]
+#[command(name = "netascan", version = env!("CARGO_PKG_VERSION"), about)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

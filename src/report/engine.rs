@@ -203,7 +203,7 @@ mod tests {
         let json = engine.render_json(&ctx).unwrap();
 
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(value["version"], "0.1.0");
+        assert_eq!(value["version"], env!("CARGO_PKG_VERSION"));
     }
 
     #[test]
@@ -230,7 +230,7 @@ mod tests {
 
         let decoded: ReportContext = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.host_count, 1);
-        assert_eq!(decoded.version, "0.1.0");
+        assert_eq!(decoded.version, env!("CARGO_PKG_VERSION"));
         assert_eq!(decoded.network, "unknown");
         assert_eq!(decoded.hosts[0].ip, "192.168.1.1");
         assert_eq!(decoded.hosts[0].cves.len(), 1);

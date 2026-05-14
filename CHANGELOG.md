@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] — 2026-05-14
+
 ### Added
 - **Device enrichment pipeline** — SNMP, mDNS, and MacVendors run concurrently per discovered host.
 - **Raw UDP SNMP v2c client** — manual BER encoding/decoding; reads `sysDescr` and `sysName` with no external SNMP crate.
@@ -47,5 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GitHub Pages docs** — Jekyll site with `just-the-docs` theme at `https://jorgealonsodev.github.io/net-audit-scanner`.
 - **CVE cache path fix under sudo** — resolves path via `SUDO_USER` to avoid writing to `/root/.cache`.
 
-[Unreleased]: https://github.com/jorgealonsodev/net-audit-scanner/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jorgealonsodev/net-audit-scanner/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jorgealonsodev/net-audit-scanner/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jorgealonsodev/net-audit-scanner/releases/tag/v0.1.0

@@ -7,7 +7,7 @@ fn version_flag_prints_correct_version() {
     cmd.arg("--version");
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("netascan 0.1.0"));
+        .stdout(predicates::str::contains("netascan 0.2.0"));
 }
 
 #[test]

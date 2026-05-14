@@ -484,7 +484,7 @@ mod tests {
         let ctx = ReportContext::from(&hosts);
         assert_eq!(ctx.host_count, 2);
         assert_eq!(ctx.hosts.len(), 2);
-        assert_eq!(ctx.version, "0.1.0");
+        assert_eq!(ctx.version, env!("CARGO_PKG_VERSION"));
         assert_eq!(ctx.network, "unknown");
         // generated_at should be a valid RFC3339 timestamp
         assert!(!ctx.generated_at.is_empty());
@@ -517,7 +517,7 @@ mod tests {
         let json = serde_json::to_string(&ctx).unwrap();
         let decoded: ReportContext = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.host_count, 1);
-        assert_eq!(decoded.version, "0.1.0");
+        assert_eq!(decoded.version, env!("CARGO_PKG_VERSION"));
         assert_eq!(decoded.network, "unknown");
         assert_eq!(decoded.hosts[0].ip, "10.0.0.1");
     }
