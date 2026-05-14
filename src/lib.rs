@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod config;
 pub mod cve;
+pub mod enrichment;
 pub mod error;
 pub mod fingerprint;
 pub mod report;

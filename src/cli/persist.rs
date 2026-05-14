@@ -23,12 +23,7 @@ pub fn scans_dir() -> PathBuf {
 ///
 /// Writes a timestamped JSON file and a `last.json` copy atomically,
 /// then enforces the 10-file retention limit.
-pub fn save_scan(
-    hosts: &[DiscoveredHost],
-    args: &ScanArgs,
-    network: &str,
-    started_at_iso: &str,
-) -> Result<(), Error> {
+pub fn save_scan(hosts: &[DiscoveredHost], args: &ScanArgs, network: &str, started_at_iso: &str) -> Result<(), Error> {
     let completed_at = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let id = uuid::Uuid::new_v4().to_string();
 
@@ -41,7 +36,10 @@ pub fn save_scan(
         crate::config::ScanConfig::default().port_range
     };
 
-    let total_cves: usize = hosts.iter().map(|h| h.open_ports.iter().map(|p| p.cves.len()).sum::<usize>()).sum();
+    let total_cves: usize = hosts
+        .iter()
+        .map(|h| h.open_ports.iter().map(|p| p.cves.len()).sum::<usize>())
+        .sum();
 
     let record = ScanRecord {
         id,
@@ -66,8 +64,7 @@ pub fn save_scan(
     let filename = format!("{timestamp}.json");
     let target = dir.join(&filename);
 
-    let json =
-        serde_json::to_string_pretty(&record).map_err(|e| Error::Persist(format!("Serialize failed: {e}")))?;
+    let json = serde_json::to_string_pretty(&record).map_err(|e| Error::Persist(format!("Serialize failed: {e}")))?;
 
     atomic_write(&target, json.as_bytes())?;
 
@@ -96,8 +93,8 @@ pub fn load_last_scan() -> Result<Vec<DiscoveredHost>, Error> {
     let content = fs::read_to_string(&last_path)
         .map_err(|e| Error::Persist(format!("Cannot read last.json at {}: {e}", last_path.display())))?;
 
-    let record: ScanRecord = serde_json::from_str(&content)
-        .map_err(|e| Error::Persist(format!("Cannot parse last.json: {e}")))?;
+    let record: ScanRecord =
+        serde_json::from_str(&content).map_err(|e| Error::Persist(format!("Cannot parse last.json: {e}")))?;
 
     Ok(record.hosts)
 }
@@ -112,8 +109,7 @@ pub fn cleanup_old_scans(dir: &Path) -> Result<(), Error> {
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| {
-            p.extension().is_some_and(|ext| ext == "json")
-                && p.file_name().is_some_and(|name| name != "last.json")
+            p.extension().is_some_and(|ext| ext == "json") && p.file_name().is_some_and(|name| name != "last.json")
         })
         .collect();
 
@@ -165,6 +161,7 @@ mod tests {
             open_ports: vec![],
             rtt_ms: Some(5),
             vendor: None,
+            device_model: None,
             os_hint: None,
             security_findings: vec![],
         }]
