@@ -42,10 +42,10 @@ pub fn grab_banner(stream: &mut TcpStream, timeout: Duration) -> Option<String> 
 pub fn classify_service(port: u16, banner: Option<&str>) -> ServiceType {
     // Port-first classification
     let base = match port {
-        80 => ServiceType::Http,
-        443 => ServiceType::Https,
+        80 | 8080 | 8008 | 8888 | 8000 => ServiceType::Http,
+        443 | 8443 | 4443 => ServiceType::Https,
         22 => ServiceType::Ssh,
-        23 => ServiceType::Telnet,
+        23 | 2323 => ServiceType::Telnet,
         21 | 20 => ServiceType::Ftp,
         554 => ServiceType::Rtsp,
         1883 | 8883 => ServiceType::Mqtt,
